@@ -33,6 +33,8 @@ test('validates a scanned branch and creates a pending ticket', async () => {
   try {
     const branch = await request(server, 'POST', '/api/branches/validate', {
       barcode: JSON.stringify({ code: 'BR-001', name: 'Central Branch' }),
+      counterNumber: 1,
+      agent: { employeeId: 'EMP-1001', name: 'Aina Rahman', phoneNumber: '60123456789' },
       latitude: 3.139003,
       longitude: 101.686855,
     });
@@ -40,6 +42,8 @@ test('validates a scanned branch and creates a pending ticket', async () => {
 
     const created = await request(server, 'POST', '/api/queue', {
       branchCode: 'BR-001',
+      counterNumber: 1,
+      agent: { employeeId: 'EMP-1001', name: 'Aina Rahman', phoneNumber: '60123456789' },
       name: 'Azinudin Test',
       phoneNumber: '0123456789',
       serviceType: 'general',
@@ -67,9 +71,23 @@ test('rejects invalid phone numbers and locations outside 2 km', async () => {
     assert.equal(invalidPhone.status, 400);
 
     const tooFar = await request(server, 'POST', '/api/branches/validate', {
-      branch: { code: 'BR-001' }, latitude: 4, longitude: 101,
+      branch: { code: 'BR-001' }, counterNumber: 1,
+      agent: { employeeId: 'EMP-1001', name: 'Aina Rahman', phoneNumber: '60123456789' },
+      latitude: 4, longitude: 101,
     });
     assert.equal(tooFar.status, 400);
+
+    const missingCounterAndAgent = await request(server, 'POST', '/api/branches/validate', {
+      branch: { code: 'BR-001' }, latitude: 3.139003, longitude: 101.686855,
+    });
+    assert.equal(missingCounterAndAgent.status, 400);
+
+    const mismatchedAgent = await request(server, 'POST', '/api/branches/validate', {
+      branch: { code: 'BR-001' }, counterNumber: 1,
+      agent: { employeeId: 'EMP-1002', name: 'Daniel Lee', phoneNumber: '60123456790' },
+      latitude: 3.139003, longitude: 101.686855,
+    });
+    assert.equal(mismatchedAgent.status, 400);
   } finally {
     server.close();
   }
