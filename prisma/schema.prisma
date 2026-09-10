@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  id          Int          @id @default(autoincrement())
+  code        String       @unique
+  name        String
+  address     String
+  latitude    Float
+  longitude   Float
+  queueEntries QueueEntry[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model QueueEntry {
+  id           Int      @id @default(autoincrement())
+  ticketNumber String   @unique
+  branchCode   String
+  branch       Branch   @relation(fields: [branchCode], references: [code])
+  name         String
+  phoneNumber  String
+  serviceType  String
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+}
+
+model DailySequence {
+  id            Int      @id @default(autoincrement())
+  operatingDate String
+  serviceType   String
+  nextNumber    Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([operatingDate, serviceType])
+}
