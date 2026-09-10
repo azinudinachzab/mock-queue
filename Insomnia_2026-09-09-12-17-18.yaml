@@ -130,12 +130,6 @@ collection:
       text: |-
         {
         	"branchCode": "BR-001",
-        	"counterNumber": 1,
-        	"agent": {
-        		"employeeId": "EMP-1001",
-        		"name": "Aina Rahman",
-        		"phoneNumber": "60123456789"
-        	},
         	"name": "John Doe",
         	"phoneNumber": "1234567890",
           "serviceType": "HM",
