@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const PORT = 3030;
-const SERVICE_TYPES = ['general', 'priority', 'appointment'];
+const SERVICE_TYPES = ['HM', 'SF', 'PR', 'RG', 'LL'];
 const queue = [];
 const ticketSequences = new Map();
 const MAX_DISTANCE_KM = 2;
@@ -66,7 +66,7 @@ app.get('/api/queue/:ticketNumber', (req, res) => {
 });
 
 app.post('/api/branches/validate', (req, res) => {
-  const { branch, barcode, counterNumber, agent, latitude, longitude } = req.body;
+  const { branch, barcode, latitude, longitude } = req.body;
   const scannedBranch = branch || parseBarcode(barcode);
 
   if (!scannedBranch) {
@@ -75,13 +75,7 @@ app.post('/api/branches/validate', (req, res) => {
     });
   }
 
-  if (counterNumber === undefined || !agent) {
-    return res.status(400).json({
-      error: 'counterNumber and agent are required',
-    });
-  }
-
-  const branchRecord = findBranch(scannedBranch, counterNumber, agent);
+  const branchRecord = findBranch(scannedBranch);
   if (!branchRecord) {
     return res.status(400).json({ error: 'Invalid branch information' });
   }
@@ -144,7 +138,7 @@ function createQueueEntry(req, res) {
     });
   }
 
-  const ticketNumber = createTicketNumber(branch.code, counter.number);
+  const ticketNumber = createTicketNumber(serviceType);
   const queueEntry = {
     id: queue.length + 1,
     ticketNumber,
@@ -171,18 +165,12 @@ function listQueue(req, res) {
   return res.json(status ? queue.filter((entry) => entry.status === status) : queue);
 }
 
-function findBranch(scannedBranch, counterNumber, agent) {
+function findBranch(scannedBranch) {
   if (typeof scannedBranch !== 'object' || !scannedBranch) return null;
-  const branch = branches.find((item) =>
+  return branches.find((item) =>
     item.code === scannedBranch.code &&
     (!scannedBranch.name || item.name === scannedBranch.name)
   );
-  if (!branch) return null;
-
-  const counter = findCounter(branch, counterNumber);
-  if (!counter || !sameAgent(counter.agent, agent)) return null;
-
-  return branch;
 }
 
 function findCounter(branch, counterNumber) {
@@ -264,12 +252,12 @@ function publicBranch(branch) {
   };
 }
 
-function createTicketNumber(branchCode, counterNumber) {
+function createTicketNumber(serviceType) {
   const date = new Date().toISOString().slice(0, 10).replaceAll('-', '');
-  const sequenceKey = `${date}:${branchCode}:${counterNumber}`;
+  const sequenceKey = `${date}:${serviceType}`;
   const nextSequence = (ticketSequences.get(sequenceKey) || 0) + 1;
   ticketSequences.set(sequenceKey, nextSequence);
-  return `Q-${date}-${String(nextSequence).padStart(4, '0')}`;
+  return `${serviceType}-${String(nextSequence).padStart(3, '0')}`;
 }
 
 // business logic ends here

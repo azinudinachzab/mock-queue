@@ -65,7 +65,7 @@ collection:
         send: true
         store: true
       rebuildPath: true
-  - url: https://mock-queue.azinudinachzab.deno.net/api/queue/Q-20260909-0001
+  - url: https://mock-queue.azinudinachzab.deno.net/api/queue/HM-001
     name: "[GET] Queue by Ticket Number"
     meta:
       id: req_6f79b7aab0524c70a1ec85f6db2e9841
@@ -101,12 +101,6 @@ collection:
         		"code": "BR-001",
         		"name": "Central Branch"
         	},
-      "counterNumber": 1,
-      "agent": {
-        "employeeId": "EMP-1001",
-        "name": "Aina Rahman",
-        "phoneNumber": "60123456789"
-      },
         	"latitude": 3.139003,
         	"longitude": 101.686855
         }
@@ -144,7 +138,7 @@ collection:
         	},
         	"name": "John Doe",
         	"phoneNumber": "1234567890",
-        	"serviceType": "general",
+          "serviceType": "HM",
         	"latitude": 3.139003,
         	"longitude": 101.686855
         }
@@ -174,12 +168,6 @@ collection:
       text: |-
         {
         	"barcode": "{\"code\":\"BR-001\",\"name\":\"Central Branch\"}",
-    "counterNumber": 1,
-    "agent": {
-      "employeeId": "EMP-1001",
-      "name": "Aina Rahman",
-      "phoneNumber": "60123456789"
-    },
         	"latitude": 3.139003,
         	"longitude": 101.686855
         }
@@ -209,12 +197,6 @@ collection:
       text: |-
         {
         	"barcode": "eyJjb2RlIjoiQlItMDAxIiwibmFtZSI6IkNlbnRyYWwgQnJhbmNoIn0",
-    "counterNumber": 1,
-    "agent": {
-      "employeeId": "EMP-1001",
-      "name": "Aina Rahman",
-      "phoneNumber": "60123456789"
-    },
         	"latitude": 3.139003,
         	"longitude": 101.686855
         }
