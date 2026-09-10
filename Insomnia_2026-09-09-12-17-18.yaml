@@ -1,0 +1,226 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: Queue Mock
+meta:
+  id: wrk_8145fc6120fa4d5baabe5a56f7b01180
+  created: 1788929874862
+  modified: 1788929874862
+  description: ""
+collection:
+  - url: https://mock-queue.azinudinachzab.deno.net/
+    name: Health Check
+    meta:
+      id: req_0b3b96c6a329498db890bf36c2817edd
+      created: 1788930134813
+      modified: 1788930897341
+      isPrivate: false
+      description: ""
+      sortKey: -1788930134813
+    method: GET
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: https://mock-queue.azinudinachzab.deno.net/api/queue
+    name: "[GET] Queue"
+    meta:
+      id: req_9b87314c5171422a8c3502c10422739e
+      created: 1788930588720
+      modified: 1788930911666
+      isPrivate: false
+      description: ""
+      sortKey: -1788930588720
+    method: GET
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: https://mock-queue.azinudinachzab.deno.net/api/queue
+    name: "[GET] Queue by Status"
+    meta:
+      id: req_c2132e2ec15946a98a4d420607c4032f
+      created: 1788930619589
+      modified: 1788930920389
+      isPrivate: false
+      description: ""
+      sortKey: -1788930619589
+    method: GET
+    parameters:
+      - name: status
+        value: pending
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: https://mock-queue.azinudinachzab.deno.net/api/queue/HM-001
+    name: "[GET] Queue by Ticket Number"
+    meta:
+      id: req_6f79b7aab0524c70a1ec85f6db2e9841
+      created: 1788930652433
+      modified: 1788930932006
+      isPrivate: false
+      description: ""
+      sortKey: -1788930652433
+    method: GET
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: https://mock-queue.azinudinachzab.deno.net/api/branches/validate
+    name: "[POST] Validate Branch"
+    meta:
+      id: req_fa593c7a4df846c8a06cd862a0d704f2
+      created: 1788930690725
+      modified: 1788930941721
+      isPrivate: false
+      description: ""
+      sortKey: -1788930690725
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+        	"branch": {
+        		"code": "BR-001",
+        		"name": "Central Branch"
+        	},
+        	"latitude": 3.139003,
+        	"longitude": 101.686855
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: https://mock-queue.azinudinachzab.deno.net/api/queue
+    name: "[POST] Queue"
+    meta:
+      id: req_56ba91d01f644264a579ec2711152732
+      created: 1788930749852
+      modified: 1788930956052
+      isPrivate: false
+      description: ""
+      sortKey: -1788930749852
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+        	"branchCode": "BR-001",
+        	"counterNumber": 1,
+        	"agent": {
+        		"employeeId": "EMP-1001",
+        		"name": "Aina Rahman",
+        		"phoneNumber": "60123456789"
+        	},
+        	"name": "John Doe",
+        	"phoneNumber": "1234567890",
+          "serviceType": "HM",
+        	"latitude": 3.139003,
+        	"longitude": 101.686855
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: https://mock-queue.azinudinachzab.deno.net/api/branches/validate
+    name: "[POST] Validate Branch by Barcode JSON"
+    meta:
+      id: req_b270f7790f8945f882162a800784c48c
+      created: 1788930778174
+      modified: 1788930974056
+      isPrivate: false
+      description: ""
+      sortKey: -1788930778174
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+        	"barcode": "{\"code\":\"BR-001\",\"name\":\"Central Branch\"}",
+        	"latitude": 3.139003,
+        	"longitude": 101.686855
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: https://mock-queue.azinudinachzab.deno.net/api/branches/validate
+    name: "[POST] Validate Branch by Barcode (base64)"
+    meta:
+      id: req_e1da8605266c4dc7a7bd24b760fb7a1a
+      created: 1788930794425
+      modified: 1788930983308
+      isPrivate: false
+      description: ""
+      sortKey: -1788930794425
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+        	"barcode": "eyJjb2RlIjoiQlItMDAxIiwibmFtZSI6IkNlbnRyYWwgQnJhbmNoIn0",
+        	"latitude": 3.139003,
+        	"longitude": 101.686855
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_7ccf024592a513fedd9a3dc18a1807149dea96a3
+    created: 1788929874864
+    modified: 1788929874864
+environments:
+  name: Base Environment
+  meta:
+    id: env_7ccf024592a513fedd9a3dc18a1807149dea96a3
+    created: 1788929874863
+    modified: 1788929874863
+    isPrivate: false
