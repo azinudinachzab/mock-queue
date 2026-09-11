@@ -97,12 +97,10 @@ collection:
       mimeType: application/json
       text: |-
         {
-        	"branch": {
-        		"code": "BR-001",
-        		"name": "Central Branch"
-        	},
-        	"latitude": 3.139003,
-        	"longitude": 101.686855
+          "branch": {
+            "code": "BR-001",
+            "name": "Central Branch"
+          }
         }
     headers:
       - name: Content-Type
@@ -161,9 +159,7 @@ collection:
       mimeType: application/json
       text: |-
         {
-        	"barcode": "{\"code\":\"BR-001\",\"name\":\"Central Branch\"}",
-        	"latitude": 3.139003,
-        	"longitude": 101.686855
+          "barcode": "{\"code\":\"BR-001\",\"name\":\"Central Branch\"}"
         }
     headers:
       - name: Content-Type
@@ -190,9 +186,7 @@ collection:
       mimeType: application/json
       text: |-
         {
-        	"barcode": "eyJjb2RlIjoiQlItMDAxIiwibmFtZSI6IkNlbnRyYWwgQnJhbmNoIn0",
-        	"latitude": 3.139003,
-        	"longitude": 101.686855
+          "barcode": "eyJjb2RlIjoiQlItMDAxIiwibmFtZSI6IkNlbnRyYWwgQnJhbmNoIn0"
         }
     headers:
       - name: Content-Type
