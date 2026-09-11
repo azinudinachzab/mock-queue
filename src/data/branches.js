@@ -5,6 +5,7 @@ module.exports = [
     address: '1 Main Street',
     latitude: 3.139003,
     longitude: 101.686855,
+    status: true,
   },
   {
     code: 'BR-002',
@@ -12,5 +13,6 @@ module.exports = [
     address: '20 North Avenue',
     latitude: 3.173825,
     longitude: 101.689674,
+    status: false,
   },
 ];

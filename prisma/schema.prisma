@@ -14,6 +14,7 @@ model Branch {
   address     String
   latitude    Float
   longitude   Float
+  status      Boolean  @default(true)
   queueEntries QueueEntry[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

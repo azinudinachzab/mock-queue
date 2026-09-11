@@ -1,6 +1,5 @@
 const { MAX_DISTANCE_KM } = require('../constants');
 const { parseBarcode } = require('../utils/barcode');
-const { validateLocation } = require('../utils/location');
 
 function createBranchService(repository) {
   return {
@@ -17,8 +16,6 @@ function createBranchService(repository) {
       if (!branch || (scannedBranch.name && branch.name !== scannedBranch.name)) {
         return { error: 'Invalid branch information' };
       }
-      const locationError = validateLocation(input.latitude, input.longitude, branch, MAX_DISTANCE_KM);
-      if (locationError) return { error: locationError };
       return { branch: publicBranch(branch), maxDistanceKm: MAX_DISTANCE_KM };
     },
   };
@@ -31,6 +28,7 @@ function publicBranch(branch) {
     address: branch.address,
     latitude: branch.latitude,
     longitude: branch.longitude,
+    status: branch.status,
   };
 }
 

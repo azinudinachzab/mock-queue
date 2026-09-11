@@ -1,0 +1,1 @@
+ALTER TABLE "Branch" ADD COLUMN "status" bool NOT NULL DEFAULT true;

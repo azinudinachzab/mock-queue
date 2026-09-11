@@ -27,16 +27,22 @@ function request(server, method, path, body) {
   });
 }
 
-test('validates a scanned branch and creates a pending ticket', async () => {
+test('validates a scanned branch without FE coordinates and creates a pending ticket', async () => {
   queue.length = 0;
   const server = app.listen(0);
   try {
     const branch = await request(server, 'POST', '/api/branches/validate', {
       barcode: JSON.stringify({ code: 'BR-001', name: 'Central Branch' }),
-      latitude: 3.139003,
-      longitude: 101.686855,
     });
     assert.equal(branch.status, 200);
+    assert.deepEqual(branch.body.branch, {
+      code: 'BR-001',
+      name: 'Central Branch',
+      address: '1 Main Street',
+      latitude: 3.139003,
+      longitude: 101.686855,
+      status: true,
+    });
 
     const created = await request(server, 'POST', '/api/queue', {
       branchCode: 'BR-001',
@@ -53,6 +59,7 @@ test('validates a scanned branch and creates a pending ticket', async () => {
     const ticket = await request(server, 'GET', `/api/queue/${created.body.ticketNumber}`);
     assert.equal(ticket.status, 200);
     assert.equal(ticket.body.ticketNumber, created.body.ticketNumber);
+    assert.equal(ticket.body.branch.status, true);
   } finally {
     server.close();
   }
@@ -67,14 +74,14 @@ test('rejects invalid phone numbers and locations outside 2 km', async () => {
     });
     assert.equal(invalidPhone.status, 400);
 
-    const tooFar = await request(server, 'POST', '/api/branches/validate', {
-      branch: { code: 'BR-001' },
+    const tooFar = await request(server, 'POST', '/api/queue', {
+      branchCode: 'BR-001', name: 'Valid Name', phoneNumber: '0123456789', serviceType: 'HM',
       latitude: 4, longitude: 101,
     });
     assert.equal(tooFar.status, 400);
 
     const branchWithoutAssignmentFields = await request(server, 'POST', '/api/branches/validate', {
-      branch: { code: 'BR-001' }, latitude: 3.139003, longitude: 101.686855,
+      branch: { code: 'BR-001' },
     });
     assert.equal(branchWithoutAssignmentFields.status, 200);
 

@@ -71,6 +71,7 @@ function toBranch(branch) {
     address: branch.address,
     latitude: branch.latitude,
     longitude: branch.longitude,
+    status: branch.status,
   };
 }
 
