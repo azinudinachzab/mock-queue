@@ -47,7 +47,8 @@ function createPrismaRepository(prisma) {
       return prisma.counter.findMany({ where: { branch: { code: branchCode } }, orderBy: { id: 'asc' } });
     },
     async findCounter(counterId) {
-      return prisma.counter.findUnique({ where: { id: counterId }, include: { branch: true } });
+      const counter = await prisma.counter.findUnique({ where: { id: counterId }, include: { branch: true } });
+      return counter ? { ...counter, branchCode: counter.branch.code } : null;
     },
     async createCounter(input) {
       return prisma.counter.create({

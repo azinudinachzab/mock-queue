@@ -10,6 +10,15 @@ npm test
 npm start
 ```
 
+Database-backed integration tests use a separate disposable PostgreSQL database:
+
+```sh
+DATABASE_URL="postgresql://.../queue_test" npm run prisma:deploy
+DATABASE_URL="postgresql://.../queue_test" npm run test:db
+```
+
+The database test file refuses to run against a database whose name does not contain `test`, unless `ALLOW_DATABASE_TESTS=true` is set explicitly.
+
 ## Prisma/Postgres
 
 Set the Postgres connection string supplied by Deno Deploy:
@@ -25,7 +34,7 @@ npm start
 
 For local schema development, use `npm run prisma:migrate -- --name init` instead of `prisma:deploy`.
 
-The application selects the Prisma repository whenever `DATABASE_URL` is set. Otherwise it selects the in-memory repository, which keeps tests independent from a live database.
+The application selects the Prisma repository whenever `DATABASE_URL` is set, except during `NODE_ENV=test`, when it uses the in-memory repository so tests remain isolated from a live database.
 
 ## Deno Deploy
 
