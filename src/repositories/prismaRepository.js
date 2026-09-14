@@ -218,6 +218,7 @@ function createPrismaRepository(prisma) {
         }
         return transaction.queueEntry.create({
           data: {
+            queueDate: input.queueDate,
             ticketNumber: `${input.serviceType}-${String(nextNumber).padStart(3, '0')}`,
             branch: { connect: { code: input.branch.code } },
             name: input.name,

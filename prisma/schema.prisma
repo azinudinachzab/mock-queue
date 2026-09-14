@@ -25,6 +25,7 @@ model Branch {
 
 model QueueEntry {
   id           Int      @id @default(autoincrement())
+  queueDate    DateTime @db.Date
   ticketNumber String
   branchCode   String
   branch       Branch   @relation(fields: [branchCode], references: [code])
@@ -35,6 +36,7 @@ model QueueEntry {
   service      Service  @relation(fields: [serviceId], references: [id])
   status       String   @default("pending")
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   queueHandlings QueueHandling[]
 
   @@unique([branchCode, ticketNumber])

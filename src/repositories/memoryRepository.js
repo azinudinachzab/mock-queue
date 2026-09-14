@@ -152,6 +152,7 @@ function createMemoryRepository() {
       sequences.set(sequenceKey, nextNumber);
       const entry = {
         id: queue.length + 1,
+        queueDate: input.queueDate.toISOString(),
         ticketNumber: `${input.serviceType}-${String(nextNumber).padStart(3, '0')}`,
         branch: input.branch,
         name: input.name,
@@ -160,6 +161,7 @@ function createMemoryRepository() {
         service: input.service,
         status: 'pending',
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       queue.push(entry);
       return entry;

@@ -65,6 +65,8 @@ test('validates a scanned branch without FE coordinates and creates a pending ti
     assert.equal(created.status, 201);
     assert.equal(created.body.status, 'pending');
     assert.match(created.body.ticketNumber, /^HM-\d{3}$/);
+    assert.equal(created.body.queueDate.slice(0, 10), new Date().toISOString().slice(0, 10));
+    assert.ok(created.body.updatedAt);
 
     const ticket = await request(server, 'GET', `/api/queue/${created.body.ticketNumber}`);
     assert.equal(ticket.status, 200);
