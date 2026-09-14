@@ -16,13 +16,15 @@ model Branch {
   longitude   Float
   status      Boolean  @default(true)
   queueEntries QueueEntry[]
+  salesAgents SalesAgent[]
+  counters    Counter[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
 
 model QueueEntry {
   id           Int      @id @default(autoincrement())
-  ticketNumber String   @unique
+  ticketNumber String
   branchCode   String
   branch       Branch   @relation(fields: [branchCode], references: [code])
   name         String
@@ -30,15 +32,73 @@ model QueueEntry {
   serviceType  String
   status       String   @default("pending")
   createdAt    DateTime @default(now())
+  queueHandlings QueueHandling[]
+
+  @@unique([branchCode, ticketNumber])
 }
 
 model DailySequence {
   id            Int      @id @default(autoincrement())
   operatingDate String
+  branchCode    String
   serviceType   String
   nextNumber    Int      @default(1)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@unique([operatingDate, serviceType])
+  @@unique([operatingDate, branchCode, serviceType])
+}
+
+model SalesAgent {
+  id              Int                  @id @default(autoincrement())
+  branchId        Int
+  employeeId      String               @unique
+  agentName       String
+  status          String
+  branch          Branch               @relation(fields: [branchId], references: [id])
+  assignments     CounterAssignment[]
+  queueHandlings  QueueHandling[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model Counter {
+  id              Int                  @id @default(autoincrement())
+  branchId        Int
+  counterCode     String               @unique
+  counterName     String
+  status          String
+  branch          Branch               @relation(fields: [branchId], references: [id])
+  assignments     CounterAssignment[]
+  queueHandlings  QueueHandling[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model CounterAssignment {
+  id            Int        @id @default(autoincrement())
+  counterId     Int
+  salesAgentId  Int
+  assignedAt    DateTime
+  unassignedAt  DateTime?
+  status        String
+  counter       Counter    @relation(fields: [counterId], references: [id])
+  salesAgent    SalesAgent @relation(fields: [salesAgentId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model QueueHandling {
+  id            Int        @id @default(autoincrement())
+  queueId       Int
+  salesAgentId  Int
+  counterId     Int
+  startTime     DateTime
+  endTime       DateTime?
+  status        String
+  queue         QueueEntry @relation(fields: [queueId], references: [id])
+  salesAgent    SalesAgent @relation(fields: [salesAgentId], references: [id])
+  counter       Counter    @relation(fields: [counterId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 }

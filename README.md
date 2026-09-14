@@ -52,3 +52,25 @@ The build command is required because `@prisma/client` imports the generated `.p
 - `src/repositories`: memory and Prisma persistence adapters
 - `prisma`: schema, migration, and branch seed
 - `test`: API tests
+
+## API surfaces
+
+Customer-facing endpoints are under `/api/public`:
+
+- `POST /api/public/branches/validate`
+- `POST /api/public/queue`
+- `GET /api/public/branches/:branchCode/queue/:ticketNumber`
+
+Staff-facing queue monitoring is under `/api/internal`:
+
+- `GET /api/internal/queue`
+- `GET /api/internal/queue/:ticketNumber`
+- `POST /api/internal/queue/:ticketNumber/start`
+- `POST /api/internal/queue/:ticketNumber/complete`
+- `POST /api/internal/queue/:ticketNumber/cancel`
+
+The public queue list is intentionally unavailable. The current staff lifecycle supports `pending -> serving -> completed` and cancellation from `pending` or `serving`. Staff authentication and counter authorization remain required before exposing these routes beyond a trusted internal network.
+
+For the current development implementation, internal requests must provide `X-Staff-Agent-Id` and `X-Staff-Counter-Id` headers. These headers are only a temporary staff-context adapter, not authentication, and should be replaced by token claims before production exposure.
+
+Ticket numbers remain simple, such as `HM-001`, but the sequence is scoped by branch, operating date, and service. The same display number can therefore exist at different branches or on different dates.

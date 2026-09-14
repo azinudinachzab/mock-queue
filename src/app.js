@@ -7,6 +7,8 @@ const { createBranchController } = require('./controllers/branchController');
 const { createQueueController } = require('./controllers/queueController');
 const { createBranchRoutes } = require('./routes/branchRoutes');
 const { createQueueRoutes } = require('./routes/queueRoutes');
+const { createPublicRoutes } = require('./routes/publicRoutes');
+const { createInternalRoutes } = require('./routes/internalRoutes');
 
 function createApp(options = {}) {
   const repository = createRepository(options);
@@ -21,6 +23,8 @@ function createApp(options = {}) {
   });
   app.use(express.json());
   app.get('/', (req, res) => res.json({ name: 'Queue API', status: 'ok' }));
+  app.use('/api/public', createPublicRoutes(branchController, queueController));
+  app.use('/api/internal', createInternalRoutes(queueController));
   app.use('/api/branches', createBranchRoutes(branchController));
   app.use('/api/queue', createQueueRoutes(queueController));
   app.use('/queue', createQueueRoutes(queueController));
