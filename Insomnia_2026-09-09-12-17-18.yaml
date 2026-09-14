@@ -1,214 +1,408 @@
 type: collection.insomnia.rest/5.0
 schema_version: "5.1"
-name: Queue Mock
+name: Queue API - Local
 meta:
-  id: wrk_8145fc6120fa4d5baabe5a56f7b01180
+  id: wrk_queue_api_local
   created: 1788929874862
   modified: 1788929874862
-  description: ""
+  description: Local API reference. Internal routes use temporary staff headers.
 collection:
-  - url: https://mock-queue.azinudinachzab.deno.net/
-    name: Health Check
+  - name: Health
     meta:
-      id: req_0b3b96c6a329498db890bf36c2817edd
-      created: 1788930134813
-      modified: 1788930897341
-      isPrivate: false
-      description: ""
-      sortKey: -1788930134813
-    method: GET
-    settings:
-      renderRequestBody: true
-      encodeUrl: true
-      followRedirects: global
-      cookies:
-        send: true
-        store: true
-      rebuildPath: true
-  - url: https://mock-queue.azinudinachzab.deno.net/api/queue
-    name: "[GET] Queue"
+      id: fld_health
+      description: Service health checks.
+    children:
+      - url: "{{ _.BASE_URL }}/"
+        name: GET Health Check
+        meta:
+          id: req_health
+        method: GET
+  - name: Public API
     meta:
-      id: req_9b87314c5171422a8c3502c10422739e
-      created: 1788930588720
-      modified: 1788930911666
-      isPrivate: false
-      description: ""
-      sortKey: -1788930588720
-    method: GET
-    settings:
-      renderRequestBody: true
-      encodeUrl: true
-      followRedirects: global
-      cookies:
-        send: true
-        store: true
-      rebuildPath: true
-  - url: https://mock-queue.azinudinachzab.deno.net/api/queue
-    name: "[GET] Queue by Status"
+      id: fld_public
+      description: Customer-facing endpoints. No staff headers required.
+    children:
+      - url: "{{ _.BASE_URL }}/api/public/branches/validate"
+        name: POST Validate Branch
+        meta:
+          id: req_public_validate_branch
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "branch": {
+                "code": "BR-001",
+                "name": "Central Branch"
+              }
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+      - url: "{{ _.BASE_URL }}/api/public/queue"
+        name: POST Create Ticket
+        meta:
+          id: req_public_create_ticket
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "branchCode": "BR-001",
+              "name": "John Doe",
+              "phoneNumber": "1234567890",
+              "serviceType": "HM",
+              "latitude": 3.139003,
+              "longitude": 101.686855
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+      - url: "{{ _.BASE_URL }}/api/public/branches/BR-001/queue/HM-001"
+        name: GET Ticket by Branch and Number
+        meta:
+          id: req_public_get_ticket
+        method: GET
+      - url: "{{ _.BASE_URL }}/api/public/queue"
+        name: GET Public Queue Listing (Expected 404)
+        meta:
+          id: req_public_queue_listing
+          description: Public queue listing is intentionally unavailable.
+        method: GET
+  - name: Internal Queue API
     meta:
-      id: req_c2132e2ec15946a98a4d420607c4032f
-      created: 1788930619589
-      modified: 1788930920389
-      isPrivate: false
-      description: ""
-      sortKey: -1788930619589
-    method: GET
-    parameters:
-      - name: status
-        value: pending
-        disabled: false
-    settings:
-      renderRequestBody: true
-      encodeUrl: true
-      followRedirects: global
-      cookies:
-        send: true
-        store: true
-      rebuildPath: true
-  - url: https://mock-queue.azinudinachzab.deno.net/api/queue/HM-001
-    name: "[GET] Queue by Ticket Number"
+      id: fld_internal_queue
+      description: Staff routes. Replace temporary headers when authentication is implemented.
+    children:
+      - url: "{{ _.BASE_URL }}/api/internal/queue"
+        name: GET List Queue
+        meta:
+          id: req_internal_list_queue
+        method: GET
+        parameters:
+          - name: status
+            value: pending
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/queue/HM-001"
+        name: GET Ticket by Number
+        meta:
+          id: req_internal_get_ticket
+        method: GET
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/queue/HM-001/status"
+        name: PATCH Change Ticket Status - Serving
+        meta:
+          id: req_internal_ticket_serving
+        method: PATCH
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "status": "serving"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/queue/HM-001/status"
+        name: PATCH Change Ticket Status - Completed
+        meta:
+          id: req_internal_ticket_completed
+        method: PATCH
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "status": "completed"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/queue/HM-001/status"
+        name: PATCH Change Ticket Status - Cancelled
+        meta:
+          id: req_internal_ticket_cancelled
+        method: PATCH
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "status": "cancelled"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/branches/BR-001/queue-status"
+        name: PATCH Set Branch Queue Day Status
+        meta:
+          id: req_internal_branch_queue_status
+        method: PATCH
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "operatingDate": "20260914",
+              "status": "open"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+  - name: Internal Counter API
     meta:
-      id: req_6f79b7aab0524c70a1ec85f6db2e9841
-      created: 1788930652433
-      modified: 1788930932006
-      isPrivate: false
-      description: ""
-      sortKey: -1788930652433
-    method: GET
-    settings:
-      renderRequestBody: true
-      encodeUrl: true
-      followRedirects: global
-      cookies:
-        send: true
-        store: true
-      rebuildPath: true
-  - url: https://mock-queue.azinudinachzab.deno.net/api/branches/validate
-    name: "[POST] Validate Branch"
+      id: fld_internal_counters
+      description: Counter and counter-assignment management.
+    children:
+      - url: "{{ _.BASE_URL }}/api/internal/counters"
+        name: GET List Counters
+        meta:
+          id: req_internal_list_counters
+        method: GET
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/counters"
+        name: POST Create Counter
+        meta:
+          id: req_internal_create_counter
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "branchCode": "BR-001",
+              "counterCode": "CTR-002",
+              "counterName": "Second Counter"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/counters/2/assignment"
+        name: POST Assign Counter
+        meta:
+          id: req_internal_assign_counter
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "salesAgentId": 1
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/counters/2/assignment"
+        name: DELETE Unassign Counter
+        meta:
+          id: req_internal_unassign_counter
+        method: DELETE
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+  - name: Internal Sales Agent API
     meta:
-      id: req_fa593c7a4df846c8a06cd862a0d704f2
-      created: 1788930690725
-      modified: 1788930941721
-      isPrivate: false
-      description: ""
-      sortKey: -1788930690725
-    method: POST
-    body:
-      mimeType: application/json
-      text: |-
-        {
-          "branch": {
-            "code": "BR-001",
-            "name": "Central Branch"
-          }
-        }
-    headers:
-      - name: Content-Type
-        value: application/json
-    settings:
-      renderRequestBody: true
-      encodeUrl: true
-      followRedirects: global
-      cookies:
-        send: true
-        store: true
-      rebuildPath: true
-  - url: https://mock-queue.azinudinachzab.deno.net/api/queue
-    name: "[POST] Queue"
+      id: fld_internal_sales_agents
+      description: Branch-scoped sales-agent CRUD. DELETE deactivates the agent.
+    children:
+      - url: "{{ _.BASE_URL }}/api/internal/sales-agents"
+        name: GET List Sales Agents
+        meta:
+          id: req_internal_list_agents
+        method: GET
+        parameters:
+          - name: branchCode
+            value: BR-001
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/sales-agents/1"
+        name: GET Sales Agent
+        meta:
+          id: req_internal_get_agent
+        method: GET
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/sales-agents"
+        name: POST Create Sales Agent
+        meta:
+          id: req_internal_create_agent
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "branchCode": "BR-001",
+              "employeeId": "EMP-003",
+              "agentName": "New Agent",
+              "status": "active"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/sales-agents/3"
+        name: PATCH Update Sales Agent
+        meta:
+          id: req_internal_update_agent
+        method: PATCH
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "agentName": "Updated Agent",
+              "status": "active"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/sales-agents/3"
+        name: DELETE Deactivate Sales Agent
+        meta:
+          id: req_internal_delete_agent
+        method: DELETE
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+  - name: Legacy Compatibility API
     meta:
-      id: req_56ba91d01f644264a579ec2711152732
-      created: 1788930749852
-      modified: 1788930956052
-      isPrivate: false
-      description: ""
-      sortKey: -1788930749852
-    method: POST
-    body:
-      mimeType: application/json
-      text: |-
-        {
-        	"branchCode": "BR-001",
-        	"name": "John Doe",
-        	"phoneNumber": "1234567890",
-          "serviceType": "HM",
-        	"latitude": 3.139003,
-        	"longitude": 101.686855
-        }
-    headers:
-      - name: Content-Type
-        value: application/json
-    settings:
-      renderRequestBody: true
-      encodeUrl: true
-      followRedirects: global
-      cookies:
-        send: true
-        store: true
-      rebuildPath: true
-  - url: https://mock-queue.azinudinachzab.deno.net/api/branches/validate
-    name: "[POST] Validate Branch by Barcode JSON"
-    meta:
-      id: req_b270f7790f8945f882162a800784c48c
-      created: 1788930778174
-      modified: 1788930974056
-      isPrivate: false
-      description: ""
-      sortKey: -1788930778174
-    method: POST
-    body:
-      mimeType: application/json
-      text: |-
-        {
-          "barcode": "{\"code\":\"BR-001\",\"name\":\"Central Branch\"}"
-        }
-    headers:
-      - name: Content-Type
-        value: application/json
-    settings:
-      renderRequestBody: true
-      encodeUrl: true
-      followRedirects: global
-      cookies:
-        send: true
-        store: true
-      rebuildPath: true
-  - url: https://mock-queue.azinudinachzab.deno.net/api/branches/validate
-    name: "[POST] Validate Branch by Barcode (base64)"
-    meta:
-      id: req_e1da8605266c4dc7a7bd24b760fb7a1a
-      created: 1788930794425
-      modified: 1788930983308
-      isPrivate: false
-      description: ""
-      sortKey: -1788930794425
-    method: POST
-    body:
-      mimeType: application/json
-      text: |-
-        {
-          "barcode": "eyJjb2RlIjoiQlItMDAxIiwibmFtZSI6IkNlbnRyYWwgQnJhbmNoIn0"
-        }
-    headers:
-      - name: Content-Type
-        value: application/json
-    settings:
-      renderRequestBody: true
-      encodeUrl: true
-      followRedirects: global
-      cookies:
-        send: true
-        store: true
-      rebuildPath: true
+      id: fld_legacy
+      description: Existing aliases retained for backward compatibility.
+    children:
+      - url: "{{ _.BASE_URL }}/api/branches/validate"
+        name: POST Legacy Validate Branch
+        meta:
+          id: req_legacy_validate_branch
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "branch": {
+                "code": "BR-001",
+                "name": "Central Branch"
+              }
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+      - url: "{{ _.BASE_URL }}/api/queue"
+        name: GET Legacy Queue
+        meta:
+          id: req_legacy_list_queue
+        method: GET
+      - url: "{{ _.BASE_URL }}/api/queue/HM-001"
+        name: GET Legacy Ticket
+        meta:
+          id: req_legacy_get_ticket
+        method: GET
+      - url: "{{ _.BASE_URL }}/api/queue"
+        name: POST Legacy Create Ticket
+        meta:
+          id: req_legacy_create_ticket
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "branchCode": "BR-001",
+              "name": "John Doe",
+              "phoneNumber": "1234567890",
+              "serviceType": "HM",
+              "latitude": 3.139003,
+              "longitude": 101.686855
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+      - url: "{{ _.BASE_URL }}/queue"
+        name: GET Short Legacy Queue
+        meta:
+          id: req_short_legacy_list_queue
+        method: GET
+      - url: "{{ _.BASE_URL }}/queue/HM-001"
+        name: GET Short Legacy Ticket
+        meta:
+          id: req_short_legacy_get_ticket
+        method: GET
+      - url: "{{ _.BASE_URL }}/queue"
+        name: POST Short Legacy Create Ticket
+        meta:
+          id: req_short_legacy_create_ticket
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "branchCode": "BR-001",
+              "name": "John Doe",
+              "phoneNumber": "1234567890",
+              "serviceType": "HM",
+              "latitude": 3.139003,
+              "longitude": 101.686855
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
 cookieJar:
-  name: Default Jar
+  name: Queue API Local Jar
   meta:
-    id: jar_7ccf024592a513fedd9a3dc18a1807149dea96a3
+    id: jar_queue_api_local
     created: 1788929874864
     modified: 1788929874864
 environments:
-  name: Base Environment
+  name: Local
   meta:
-    id: env_7ccf024592a513fedd9a3dc18a1807149dea96a3
+    id: env_queue_api_local
     created: 1788929874863
     modified: 1788929874863
     isPrivate: false
+  data:
+    BASE_URL: http://localhost:3030

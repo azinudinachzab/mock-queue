@@ -10,19 +10,30 @@ function createQueueController(queueService) {
       if (!entry) return res.status(404).json({ error: 'Ticket not found' });
       return res.json(entry);
     },
-    start: async (req, res) => respondToTransition(res, await queueService.start(req.params.ticketNumber, req.staff)),
-    complete: async (req, res) => respondToTransition(res, await queueService.complete(req.params.ticketNumber, req.staff)),
-    cancel: async (req, res) => respondToTransition(res, await queueService.cancel(req.params.ticketNumber, req.staff)),
+    changeTicketStatus: async (req, res) => respondToTransition(
+      res,
+      await queueService.changeTicketStatus(req.params.ticketNumber, req.body.status, req.staff),
+    ),
+    changeBranchQueueStatus: async (req, res) => {
+      const result = await queueService.changeBranchQueueStatus(
+        req.params.branchCode,
+        req.body.operatingDate,
+        req.body.status,
+        req.staff,
+      );
+      if (result.error) return res.status(result.notFound ? 404 : result.forbidden ? 403 : 400).json({ error: result.error });
+      return res.json(result.queue);
+    },
     create: async (req, res) => {
       const result = await queueService.create(req.body);
-      if (result.error) return res.status(400).json({ error: result.error });
+      if (result.error) return res.status(result.closed ? 409 : result.queueStatusNotFound ? 503 : 400).json({ error: result.error });
       return res.status(201).json(result.entry);
     },
   };
 }
 
 function respondToTransition(res, result) {
-  if (result.error) return res.status(result.notFound ? 404 : result.forbidden ? 403 : 409).json({ error: result.error });
+  if (result.error) return res.status(result.notFound ? 404 : result.forbidden ? 403 : result.conflict ? 409 : 409).json({ error: result.error });
   return res.json(result.entry);
 }
 

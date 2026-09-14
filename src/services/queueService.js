@@ -1,4 +1,4 @@
-const { MAX_DISTANCE_KM, QUEUE_STATUSES, SERVICE_TYPES } = require('../constants');
+const { BRANCH_QUEUE_STATUSES, MAX_DISTANCE_KM, QUEUE_STATUSES } = require('../constants');
 const { validateLocation } = require('../utils/location');
 
 function createQueueService(repository, now = () => new Date()) {
@@ -18,6 +18,10 @@ function createQueueService(repository, now = () => new Date()) {
       }
       const branch = await repository.findBranchByCode(input.branchCode);
       if (!branch) return { error: 'Invalid branchCode' };
+      const date = now().toISOString().slice(0, 10).replaceAll('-', '');
+      const branchQueue = await repository.findBranchQueueStatus(input.branchCode, date);
+      if (!branchQueue) return { error: 'Queue status is not configured for this branch and date', queueStatusNotFound: true };
+      if (branchQueue.status === 'closed') return { error: 'Queue is closed for this branch and date', closed: true };
       const locationError = validateLocation(input.latitude, input.longitude, branch, MAX_DISTANCE_KM);
       if (locationError) return { error: locationError };
       if (typeof input.name !== 'string' || input.name.length < 2 || input.name.length > 100 || !/^[\p{L}][\p{L} .'-]*$/u.test(input.name)) {
@@ -26,26 +30,34 @@ function createQueueService(repository, now = () => new Date()) {
       if (typeof input.phoneNumber !== 'string' || !/^\d{7,15}$/.test(input.phoneNumber)) {
         return { error: 'phoneNumber must contain 7 to 15 digits' };
       }
-      if (!SERVICE_TYPES.includes(input.serviceType)) {
-        return { error: `serviceType must be one of: ${SERVICE_TYPES.join(', ')}` };
-      }
-      const date = now().toISOString().slice(0, 10).replaceAll('-', '');
+      const service = await repository.findServiceByCode(input.serviceType);
+      if (!service || service.status !== 'active') return { error: 'Invalid or inactive serviceType' };
       return {
         entry: await repository.createQueueEntry({
           ...input,
           branch,
+          service,
           operatingDate: date,
         }),
       };
     },
-    async start(ticketNumber, staff) {
-      return transition(repository, ticketNumber, 'serving', ['pending'], staff);
+    async changeBranchQueueStatus(branchCode, operatingDate, status, staff) {
+      if (!BRANCH_QUEUE_STATUSES.includes(status)) return { error: 'status must be open or closed' };
+      if (!/^\d{8}$/.test(operatingDate || '')) return { error: 'operatingDate must use YYYYMMDD format' };
+      const branch = await repository.findBranchByCode(branchCode);
+      if (!branch) return { error: 'Invalid branchCode', notFound: true };
+      const assignment = await repository.findActiveStaffAssignment(staff, branchCode);
+      if (!assignment) return { error: 'Staff agent is not assigned to this counter or branch', forbidden: true };
+      return { queue: await repository.setBranchQueueStatus(branchCode, operatingDate, status) };
     },
-    async complete(ticketNumber, staff) {
-      return transition(repository, ticketNumber, 'completed', ['serving'], staff);
-    },
-    async cancel(ticketNumber, staff) {
-      return transition(repository, ticketNumber, 'cancelled', ['pending', 'serving'], staff);
+    async changeTicketStatus(ticketNumber, status, staff) {
+      const transitions = {
+        serving: ['pending'],
+        completed: ['serving'],
+        cancelled: ['pending', 'serving'],
+      };
+      if (!transitions[status]) return { error: 'status must be serving, completed, or cancelled' };
+      return transition(repository, ticketNumber, status, transitions[status], staff);
     },
   };
 }
@@ -58,11 +70,20 @@ async function transition(repository, ticketNumber, nextStatus, allowedStatuses,
   if (!allowedStatuses.includes(entry.status)) {
     return { error: `Cannot change ticket from ${entry.status} to ${nextStatus}` };
   }
-  const updated = await repository.updateQueueStatus(ticketNumber, nextStatus);
   if (nextStatus === 'serving') {
-    await repository.createQueueHandling(entry, staff);
-  } else {
-    await repository.closeQueueHandling(entry.id, nextStatus);
+    if (await repository.hasActiveQueueHandling(entry.id)) {
+      return { error: 'Ticket already has an active handling', conflict: true };
+    }
+    if (await repository.hasActiveCounterHandling(staff.counterId)) {
+      return { error: 'Counter is already handling another ticket', conflict: true };
+    }
+  }
+  const updated = repository.transitionQueueStatus
+    ? await repository.transitionQueueStatus(ticketNumber, nextStatus, staff)
+    : await repository.updateQueueStatus(ticketNumber, nextStatus);
+  if (!repository.transitionQueueStatus) {
+    if (nextStatus === 'serving') await repository.createQueueHandling(entry, staff);
+    else await repository.closeQueueHandling(entry.id, nextStatus);
   }
   return { entry: updated };
 }

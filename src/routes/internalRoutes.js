@@ -5,9 +5,8 @@ function createInternalRoutes(queueController) {
   const router = express.Router();
   router.use(requireStaffContext);
   router.get('/queue', queueController.list);
-  router.post('/queue/:ticketNumber/start', queueController.start);
-  router.post('/queue/:ticketNumber/complete', queueController.complete);
-  router.post('/queue/:ticketNumber/cancel', queueController.cancel);
+  router.patch('/branches/:branchCode/queue-status', queueController.changeBranchQueueStatus);
+  router.patch('/queue/:ticketNumber/status', queueController.changeTicketStatus);
   router.get('/queue/:ticketNumber', queueController.findByTicket);
   return router;
 }

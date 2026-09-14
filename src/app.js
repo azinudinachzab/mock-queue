@@ -3,17 +3,25 @@ const { MAX_DISTANCE_KM } = require('./constants');
 const { createRepository } = require('./repositories');
 const { createBranchService } = require('./services/branchService');
 const { createQueueService } = require('./services/queueService');
+const { createCounterService } = require('./services/counterService');
+const { createSalesAgentService } = require('./services/salesAgentService');
 const { createBranchController } = require('./controllers/branchController');
 const { createQueueController } = require('./controllers/queueController');
+const { createCounterController } = require('./controllers/counterController');
+const { createSalesAgentController } = require('./controllers/salesAgentController');
 const { createBranchRoutes } = require('./routes/branchRoutes');
 const { createQueueRoutes } = require('./routes/queueRoutes');
 const { createPublicRoutes } = require('./routes/publicRoutes');
 const { createInternalRoutes } = require('./routes/internalRoutes');
+const { createCounterRoutes } = require('./routes/counterRoutes');
+const { createSalesAgentRoutes } = require('./routes/salesAgentRoutes');
 
 function createApp(options = {}) {
   const repository = createRepository(options);
   const branchController = createBranchController(createBranchService(repository));
   const queueController = createQueueController(createQueueService(repository, options.now));
+  const counterController = createCounterController(createCounterService(repository));
+  const salesAgentController = createSalesAgentController(createSalesAgentService(repository));
   const app = express();
   const logger = options.logger || console;
 
@@ -25,6 +33,8 @@ function createApp(options = {}) {
   app.get('/', (req, res) => res.json({ name: 'Queue API', status: 'ok' }));
   app.use('/api/public', createPublicRoutes(branchController, queueController));
   app.use('/api/internal', createInternalRoutes(queueController));
+  app.use('/api/internal/counters', require('./middleware/staffContext').requireStaffContext, createCounterRoutes(counterController));
+  app.use('/api/internal/sales-agents', require('./middleware/staffContext').requireStaffContext, createSalesAgentRoutes(salesAgentController));
   app.use('/api/branches', createBranchRoutes(branchController));
   app.use('/api/queue', createQueueRoutes(queueController));
   app.use('/queue', createQueueRoutes(queueController));
