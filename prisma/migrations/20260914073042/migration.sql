@@ -1,18 +1,3 @@
-/*
-  Warnings:
-
-  - A unique constraint covering the columns `[branchCode,ticketNumber]` on the table `QueueEntry` will be added. If there are existing duplicate values, this will fail.
-
-*/
--- DropForeignKey
-ALTER TABLE "DailySequence" DROP CONSTRAINT "DailySequence_branchCode_fkey";
-
--- DropIndex
-DROP INDEX "QueueEntry_serviceId_idx";
-
--- DropIndex
-DROP INDEX "QueueEntry_ticketNumber_key";
-
 -- CreateTable
 CREATE TABLE "SalesAgent" (
     "id" SERIAL NOT NULL,
