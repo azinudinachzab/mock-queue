@@ -24,7 +24,8 @@ async function main() {
       create: branch,
     });
 
-    await prisma.branchQueueDay.upsert({
+    const seededAt = new Date();
+    const queueDay = await prisma.branchQueueDay.upsert({
       where: {
         branchCode_operatingDate: {
           branchCode: seededBranch.code,
@@ -36,7 +37,13 @@ async function main() {
         branchCode: seededBranch.code,
         operatingDate,
         status: 'open',
+        createdAt: seededAt,
+        startedAt: seededAt,
       },
+    });
+    await prisma.branchQueueDay.update({
+      where: { id: queueDay.id },
+      data: { startedAt: queueDay.createdAt },
     });
   }
 

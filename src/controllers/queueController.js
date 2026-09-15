@@ -38,7 +38,7 @@ function createQueueController(queueService) {
     ),
     create: async (req, res) => {
       const result = await queueService.create(req.body);
-      if (result.error) return res.status(result.closed || result.duplicate ? 409 : result.queueStatusNotFound ? 503 : 400).json({ error: result.error });
+      if (result.error) return res.status(result.closed || result.duplicate || result.notStarted ? 409 : result.queueStatusNotFound ? 503 : 400).json({ error: result.error });
       return res.status(201).json(result.entry);
     },
   };

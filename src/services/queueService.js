@@ -22,6 +22,7 @@ function createQueueService(repository, now = () => new Date()) {
       const branchQueue = await repository.findBranchQueueStatus(input.branchCode, date);
       if (!branchQueue) return { error: 'Queue status is not configured for this branch and date', queueStatusNotFound: true };
       if (branchQueue.status === 'closed') return { error: 'Queue is closed for this branch and date', closed: true };
+      if (!branchQueue.startedAt) return { error: 'Queue has not been started for this branch and date', notStarted: true };
       const locationError = validateLocation(input.latitude, input.longitude, branch, MAX_DISTANCE_KM);
       if (locationError) return { error: locationError };
       if (typeof input.name !== 'string' || input.name.length < 2 || input.name.length > 100 || !/^[\p{L}][\p{L} .'-]*$/u.test(input.name)) {

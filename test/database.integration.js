@@ -80,6 +80,7 @@ async function resetDatabase() {
       branchCode: branch.code,
       operatingDate: operatingDate(),
       status: 'open',
+      startedAt: new Date(),
     })),
   });
 }
@@ -246,6 +247,10 @@ test('separates public creation from internal queue monitoring', async () => {
 });
 
 test('opens today queue and returns the database-backed dashboard summary', async () => {
+  await prisma.branchQueueDay.update({
+    where: { branchCode_operatingDate: { branchCode: 'BR-001', operatingDate: operatingDate() } },
+    data: { startedAt: null },
+  });
   const server = app.listen(0);
   const staffHeaders = { 'x-staff-agent-id': '1', 'x-staff-counter-id': '1' };
   try {

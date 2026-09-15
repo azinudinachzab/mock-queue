@@ -5,8 +5,8 @@ const { app, queue, repository } = require('../app');
 
 test.beforeEach(async () => {
   const operatingDate = new Date().toISOString().slice(0, 10).replaceAll('-', '');
-  await repository.setBranchQueueStatus('BR-001', operatingDate, 'open');
-  await repository.setBranchQueueStatus('BR-002', operatingDate, 'open');
+  await repository.startQueueDay('BR-001', operatingDate, new Date());
+  await repository.startQueueDay('BR-002', operatingDate, new Date());
 });
 
 function request(server, method, path, body, headers = {}) {
@@ -178,25 +178,35 @@ test('separates public creation from internal queue monitoring', async () => {
 
 test('starts today queue and returns counter dashboard data', async () => {
   queue.length = 0;
+  const operatingDate = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  repository.branchQueueStatuses.set(`BR-001:${operatingDate}`, {
+    branchCode: 'BR-001', operatingDate, status: 'open', startedAt: null,
+  });
   const server = app.listen(0);
   const staffHeaders = { 'x-staff-agent-id': '1', 'x-staff-counter-id': '1' };
   try {
     const notStarted = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
     assert.equal(notStarted.status, 409);
+    const rejected = await request(server, 'POST', '/api/public/queue', {
+      branchCode: 'BR-001', name: 'Before Start', phoneNumber: '0123456789', serviceType: 'HM',
+      latitude: 3.139003, longitude: 101.686855,
+    });
+    assert.equal(rejected.status, 409);
+
+    const started = await requestWithHeaders(server, 'POST', '/api/internal/dashboard/start', staffHeaders);
+    assert.equal(started.status, 200);
+    assert.equal(started.body.branch.code, 'BR-001');
+    assert.equal(started.body.counter.id, 1);
+    assert.equal(started.body.waitingCount, 0);
+    assert.equal(started.body.currentTicket, null);
+    assert.ok(started.body.queueDay.startedAt);
+    assert.ok(started.body.durationSeconds >= 0);
 
     const created = await request(server, 'POST', '/api/public/queue', {
       branchCode: 'BR-001', name: 'Dashboard Customer', phoneNumber: '0123456789', serviceType: 'HM',
       latitude: 3.139003, longitude: 101.686855,
     });
-    const started = await requestWithHeaders(server, 'POST', '/api/internal/dashboard/start', staffHeaders);
-    assert.equal(started.status, 200);
-    assert.equal(started.body.branch.code, 'BR-001');
-    assert.equal(started.body.counter.id, 1);
-    assert.equal(started.body.waitingCount, 1);
-    assert.equal(started.body.currentTicket, null);
-    assert.equal(started.body.nextTicket, created.body.ticketNumber);
-    assert.ok(started.body.queueDay.startedAt);
-    assert.ok(started.body.durationSeconds >= 0);
+    assert.equal(created.status, 201);
 
     const dashboard = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
     assert.equal(dashboard.status, 200);

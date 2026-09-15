@@ -101,6 +101,8 @@ For the current development implementation, internal requests must provide `X-St
 
 The branch queue status endpoint accepts `{ "operatingDate": "YYYYMMDD", "status": "open" | "closed" }`. A closed branch queue rejects new public tickets for that branch and date with `409 Conflict`. If no status row exists, public ticket creation returns `503 Service Unavailable`; the day must be explicitly configured as `open` or `closed` first.
 
+An open queue day must also be started by staff through `POST /api/internal/dashboard/start` before public tickets can be created. An open but unstarted day returns `409 Conflict` for ticket creation.
+
 Ticket numbers remain simple, such as `HM-001`, but the sequence is scoped by branch, operating date, and service. The same display number can therefore exist at different branches or on different dates.
 
 Serving is rejected when the selected counter is already handling another ticket. Ticket status and queue-handling history are persisted together transactionally in the Prisma repository.
