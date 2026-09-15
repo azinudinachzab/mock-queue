@@ -24,6 +24,10 @@ function operatingDate() {
   return new Date().toISOString().slice(0, 10).replaceAll('-', '');
 }
 
+function operatingDateDate() {
+  return new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+}
+
 async function resetDatabase() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE
     "QueueHandling",
@@ -78,7 +82,7 @@ async function resetDatabase() {
   await prisma.branchQueueDay.createMany({
     data: branches.map((branch) => ({
       branchCode: branch.code,
-      operatingDate: operatingDate(),
+      operatingDate: operatingDateDate(),
       status: 'open',
       startedAt: new Date(),
     })),
@@ -157,7 +161,7 @@ test('validates a scanned branch without FE coordinates and creates a pending ti
 
 test('rejects public ticket creation when branch queue status is not configured', async () => {
   await prisma.branchQueueDay.delete({
-    where: { branchCode_operatingDate: { branchCode: 'BR-001', operatingDate: operatingDate() } },
+    where: { branchCode_operatingDate: { branchCode: 'BR-001', operatingDate: operatingDateDate() } },
   });
   const server = app.listen(0);
   try {
@@ -248,7 +252,7 @@ test('separates public creation from internal queue monitoring', async () => {
 
 test('opens today queue and returns the database-backed dashboard summary', async () => {
   await prisma.branchQueueDay.update({
-    where: { branchCode_operatingDate: { branchCode: 'BR-001', operatingDate: operatingDate() } },
+    where: { branchCode_operatingDate: { branchCode: 'BR-001', operatingDate: operatingDateDate() } },
     data: { startedAt: null },
   });
   const server = app.listen(0);
@@ -273,7 +277,11 @@ test('opens today queue and returns the database-backed dashboard summary', asyn
     const dashboard = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
     assert.equal(dashboard.status, 200);
     assert.equal(dashboard.body.waitingCount, 1);
-    assert.equal(dashboard.body.nextTicket, created.body.ticketNumber);
+    assert.deepEqual(dashboard.body.nextTicket, [{
+      ticketNumber: created.body.ticketNumber,
+      date: created.body.queueDate,
+      status: 'pending',
+    }]);
   } finally {
     await close(server);
   }

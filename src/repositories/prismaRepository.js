@@ -82,21 +82,21 @@ function createPrismaRepository(prisma) {
     },
     async findBranchQueueStatus(branchCode, operatingDate) {
       const queueDay = await prisma.branchQueueDay.findUnique({
-        where: { branchCode_operatingDate: { branchCode, operatingDate } },
+        where: { branchCode_operatingDate: { branchCode, operatingDate: operatingDateDate(operatingDate) } },
       });
       return queueDay;
     },
     async setBranchQueueStatus(branchCode, operatingDate, status) {
       return prisma.branchQueueDay.upsert({
-        where: { branchCode_operatingDate: { branchCode, operatingDate } },
-        create: { branchCode, operatingDate, status },
+        where: { branchCode_operatingDate: { branchCode, operatingDate: operatingDateDate(operatingDate) } },
+        create: { branchCode, operatingDate: operatingDateDate(operatingDate), status },
         update: { status },
       });
     },
     async startQueueDay(branchCode, operatingDate, startedAt) {
       return prisma.branchQueueDay.upsert({
-        where: { branchCode_operatingDate: { branchCode, operatingDate } },
-        create: { branchCode, operatingDate, status: 'open', startedAt },
+        where: { branchCode_operatingDate: { branchCode, operatingDate: operatingDateDate(operatingDate) } },
+        create: { branchCode, operatingDate: operatingDateDate(operatingDate), status: 'open', startedAt },
         update: { status: 'open', startedAt },
       });
     },
@@ -129,8 +129,8 @@ function createPrismaRepository(prisma) {
         queueDay,
         counterId,
         waitingCount: pending.length,
-        currentTicket: handling ? handling.queue.ticketNumber : null,
-        nextTicket: pending.length ? pending[0].ticketNumber : null,
+        currentTicket: handling ? [ticketSummary(handling.queue)] : [],
+        nextTicket: pending.map(ticketSummary),
       };
     },
     async findQueueByTicket(ticketNumber, branchCode) {
@@ -269,7 +269,7 @@ function createPrismaRepository(prisma) {
         const existing = await transaction.dailySequence.findUnique({
           where: {
             operatingDate_branchCode_serviceType: {
-              operatingDate: input.operatingDate,
+              operatingDate: operatingDateDate(input.operatingDate),
               branchCode: input.branch.code,
               serviceType: input.serviceType,
             },
@@ -284,7 +284,7 @@ function createPrismaRepository(prisma) {
         } else {
           await transaction.dailySequence.create({
             data: {
-              operatingDate: input.operatingDate,
+              operatingDate: operatingDateDate(input.operatingDate),
               branchCode: input.branch.code,
               serviceType: input.serviceType,
               nextNumber: 2,
@@ -306,6 +306,18 @@ function createPrismaRepository(prisma) {
       });
       return toQueueEntry(entry);
     },
+  };
+}
+
+function operatingDateDate(operatingDate) {
+  return new Date(`${operatingDate.slice(0, 4)}-${operatingDate.slice(4, 6)}-${operatingDate.slice(6, 8)}T00:00:00.000Z`);
+}
+
+function ticketSummary(entry) {
+  return {
+    ticketNumber: entry.ticketNumber,
+    date: entry.queueDate,
+    status: entry.status,
   };
 }
 

@@ -198,7 +198,7 @@ test('starts today queue and returns counter dashboard data', async () => {
     assert.equal(started.body.branch.code, 'BR-001');
     assert.equal(started.body.counter.id, 1);
     assert.equal(started.body.waitingCount, 0);
-    assert.equal(started.body.currentTicket, null);
+    assert.deepEqual(started.body.currentTicket, []);
     assert.ok(started.body.queueDay.startedAt);
     assert.ok(started.body.durationSeconds >= 0);
 
@@ -210,7 +210,11 @@ test('starts today queue and returns counter dashboard data', async () => {
 
     const dashboard = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
     assert.equal(dashboard.status, 200);
-    assert.equal(dashboard.body.nextTicket, created.body.ticketNumber);
+    assert.deepEqual(dashboard.body.nextTicket, [{
+      ticketNumber: created.body.ticketNumber,
+      date: created.body.queueDate,
+      status: 'pending',
+    }]);
   } finally {
     server.close();
   }

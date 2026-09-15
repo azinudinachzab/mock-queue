@@ -7,7 +7,7 @@ const counters = require('../src/data/counters');
 const prisma = new PrismaClient();
 
 async function main() {
-  const operatingDate = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  const operatingDate = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
 
   for (const service of services) {
     await prisma.service.upsert({

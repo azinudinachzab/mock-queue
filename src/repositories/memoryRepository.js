@@ -117,14 +117,14 @@ function createMemoryRepository() {
         && entry.queueDate.slice(0, 10).replaceAll('-', '') === operatingDate);
       const handling = queueHandling.find((item) => item.counterId === counterId && item.status === 'serving');
       const current = handling ? queue.find((entry) => entry.id === handling.queueId) : null;
-      const next = entries.find((entry) => entry.status === 'pending') || null;
+      const pending = entries.filter((entry) => entry.status === 'pending');
       return {
         branch: await this.findBranchByCode(branchCode),
         queueDay,
         counterId,
         waitingCount: entries.filter((entry) => entry.status === 'pending').length,
-        currentTicket: current ? current.ticketNumber : null,
-        nextTicket: next ? next.ticketNumber : null,
+        currentTicket: current ? [ticketSummary(current)] : [],
+        nextTicket: pending.map(ticketSummary),
       };
     },
     async findQueueByTicket(ticketNumber, branchCode) {
@@ -207,6 +207,14 @@ function createMemoryRepository() {
       queue.push(entry);
       return entry;
     },
+  };
+}
+
+function ticketSummary(entry) {
+  return {
+    ticketNumber: entry.ticketNumber,
+    date: entry.queueDate,
+    status: entry.status,
   };
 }
 

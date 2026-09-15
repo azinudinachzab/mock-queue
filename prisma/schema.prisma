@@ -54,7 +54,7 @@ model Service {
 
 model DailySequence {
   id            Int      @id @default(autoincrement())
-  operatingDate String
+  operatingDate DateTime
   branchCode    String
   serviceType   String
   nextNumber    Int      @default(1)
@@ -67,7 +67,7 @@ model DailySequence {
 model BranchQueueDay {
   id            Int      @id @default(autoincrement())
   branchCode    String
-  operatingDate String
+  operatingDate DateTime
   status        String   @default("open")
   startedAt     DateTime?
   branch        Branch   @relation(fields: [branchCode], references: [code])
