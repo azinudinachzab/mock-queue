@@ -1,0 +1,1 @@
+ALTER TABLE "BranchQueueDay" ADD COLUMN "startedAt" TIMESTAMP(3);

@@ -1,0 +1,450 @@
+{
+  "info": {
+    "_postman_id": "wrk_8145fc6120fa4d5baabe5a56f7b01180",
+    "name": "Queue Mock",
+    "description": "",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://mock-queue.azinudinachzab.deno.net/",
+          "protocol": "https",
+          "host": [
+            "mock-queue",
+            "azinudinachzab",
+            "deno",
+            "net"
+          ],
+          "path": [
+            ""
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[GET] Queue",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://mock-queue.azinudinachzab.deno.net/api/queue",
+          "protocol": "https",
+          "host": [
+            "mock-queue",
+            "azinudinachzab",
+            "deno",
+            "net"
+          ],
+          "path": [
+            "api",
+            "queue"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[GET] Queue by Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://mock-queue.azinudinachzab.deno.net/api/queue?status=pending",
+          "protocol": "https",
+          "host": [
+            "mock-queue",
+            "azinudinachzab",
+            "deno",
+            "net"
+          ],
+          "path": [
+            "api",
+            "queue"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "pending"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[GET] Queue by Ticket Number",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://mock-queue.azinudinachzab.deno.net/api/queue/HM-001",
+          "protocol": "https",
+          "host": [
+            "mock-queue",
+            "azinudinachzab",
+            "deno",
+            "net"
+          ],
+          "path": [
+            "api",
+            "queue",
+            "HM-001"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[POST] Validate Branch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"branch\": {\n    \"code\": \"BR-001\",\n    \"name\": \"Central Branch\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://mock-queue.azinudinachzab.deno.net/api/branches/validate",
+          "protocol": "https",
+          "host": [
+            "mock-queue",
+            "azinudinachzab",
+            "deno",
+            "net"
+          ],
+          "path": [
+            "api",
+            "branches",
+            "validate"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[POST] Queue",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"branchCode\": \"BR-001\",\n  \"name\": \"John Doe\",\n  \"phoneNumber\": \"1234567890\",\n  \"serviceType\": \"HM\",\n  \"latitude\": 3.139003,\n  \"longitude\": 101.686855\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://mock-queue.azinudinachzab.deno.net/api/queue",
+          "protocol": "https",
+          "host": [
+            "mock-queue",
+            "azinudinachzab",
+            "deno",
+            "net"
+          ],
+          "path": [
+            "api",
+            "queue"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[POST] Validate Branch by Barcode JSON",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"barcode\": \"{\\\"code\\\":\\\"BR-001\\\",\\\"name\\\":\\\"Central Branch\\\"}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://mock-queue.azinudinachzab.deno.net/api/branches/validate",
+          "protocol": "https",
+          "host": [
+            "mock-queue",
+            "azinudinachzab",
+            "deno",
+            "net"
+          ],
+          "path": [
+            "api",
+            "branches",
+            "validate"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[POST] Validate Branch by Barcode (base64)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"barcode\": \"eyJjb2RlIjoiQlItMDAxIiwibmFtZSI6IkNlbnRyYWwgQnJhbmNoIn0\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://mock-queue.azinudinachzab.deno.net/api/branches/validate",
+          "protocol": "https",
+          "host": [
+            "mock-queue",
+            "azinudinachzab",
+            "deno",
+            "net"
+          ],
+          "path": [
+            "api",
+            "branches",
+            "validate"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[PUBLIC POST] Create Queue Ticket",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"branchCode\": \"BR-001\",\n  \"name\": \"John Doe\",\n  \"phoneNumber\": \"1234567890\",\n  \"serviceType\": \"HM\",\n  \"latitude\": 3.139003,\n  \"longitude\": 101.686855\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/public/queue",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "public", "queue"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[PUBLIC GET] Get Ticket by Branch",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/public/branches/BR-001/queue/HM-001",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "public", "branches", "BR-001", "queue", "HM-001"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[INTERNAL PATCH] Set Branch Queue Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-Staff-Agent-Id", "value": "1", "type": "text" },
+          { "key": "X-Staff-Counter-Id", "value": "1", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operatingDate\": \"20260914\",\n  \"status\": \"open\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/internal/branches/BR-001/queue-status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "internal", "branches", "BR-001", "queue-status"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[INTERNAL PATCH] Change Ticket Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-Staff-Agent-Id", "value": "1", "type": "text" },
+          { "key": "X-Staff-Counter-Id", "value": "1", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"serving\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/internal/queue/HM-001/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "internal", "queue", "HM-001", "status"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[INTERNAL GET] Queue",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Staff-Agent-Id", "value": "1", "type": "text" },
+          { "key": "X-Staff-Counter-Id", "value": "1", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/internal/queue",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "internal", "queue"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[INTERNAL GET] Counters",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Staff-Agent-Id", "value": "1", "type": "text" },
+          { "key": "X-Staff-Counter-Id", "value": "1", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/internal/counters",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "internal", "counters"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[INTERNAL POST] Create Counter",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-Staff-Agent-Id", "value": "1", "type": "text" },
+          { "key": "X-Staff-Counter-Id", "value": "1", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"branchCode\": \"BR-001\",\n  \"counterCode\": \"CTR-002\",\n  \"counterName\": \"Second Counter\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/internal/counters",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "internal", "counters"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[INTERNAL POST] Assign Counter",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-Staff-Agent-Id", "value": "1", "type": "text" },
+          { "key": "X-Staff-Counter-Id", "value": "1", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"salesAgentId\": 1\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/internal/counters/2/assignment",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "internal", "counters", "2", "assignment"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "[INTERNAL DELETE] Unassign Counter",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "X-Staff-Agent-Id", "value": "1", "type": "text" },
+          { "key": "X-Staff-Counter-Id", "value": "1", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/internal/counters/2/assignment",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "internal", "counters", "2", "assignment"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3030"
+    }
+  ]
+}

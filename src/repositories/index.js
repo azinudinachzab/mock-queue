@@ -3,7 +3,7 @@ const { createPrismaRepository } = require('./prismaRepository');
 
 function createRepository(options = {}) {
   if (options.repository) return options.repository;
-  if (process.env.DATABASE_URL) {
+  if (process.env.NODE_ENV !== 'test' && process.env.DATABASE_URL) {
     const { PrismaClient } = require('@prisma/client');
     const prisma = options.prisma || new PrismaClient();
     return createPrismaRepository(prisma);

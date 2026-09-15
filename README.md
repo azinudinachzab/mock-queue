@@ -10,6 +10,15 @@ npm test
 npm start
 ```
 
+Database-backed integration tests use a separate disposable PostgreSQL database:
+
+```sh
+DATABASE_URL="postgresql://.../queue_test" npm run prisma:deploy
+DATABASE_URL="postgresql://.../queue_test" npm run test:db
+```
+
+The database test file refuses to run against a database whose name does not contain `test`, unless `ALLOW_DATABASE_TESTS=true` is set explicitly.
+
 ## Prisma/Postgres
 
 Set the Postgres connection string supplied by Deno Deploy:
@@ -25,7 +34,7 @@ npm start
 
 For local schema development, use `npm run prisma:migrate -- --name init` instead of `prisma:deploy`.
 
-The application selects the Prisma repository whenever `DATABASE_URL` is set. Otherwise it selects the in-memory repository, which keeps tests independent from a live database.
+The application selects the Prisma repository whenever `DATABASE_URL` is set, except during `NODE_ENV=test`, when it uses the in-memory repository so tests remain isolated from a live database.
 
 ## Deno Deploy
 
@@ -52,3 +61,48 @@ The build command is required because `@prisma/client` imports the generated `.p
 - `src/repositories`: memory and Prisma persistence adapters
 - `prisma`: schema, migration, and branch seed
 - `test`: API tests
+
+## API surfaces
+
+Customer-facing endpoints are under `/api/public`:
+
+- `POST /api/public/branches/validate`
+- `POST /api/public/queue`
+- `GET /api/public/branches/:branchCode/queue/:ticketNumber`
+
+Staff-facing queue monitoring is under `/api/internal`:
+
+- `POST /api/internal/dashboard/start`
+- `GET /api/internal/dashboard`
+- `GET /api/internal/queue`
+- `GET /api/internal/queue/:ticketNumber`
+- `PATCH /api/internal/queue/:ticketNumber/status`
+- `POST /api/internal/queue/:ticketNumber/recall`
+- `PATCH /api/internal/branches/:branchCode/queue-status`
+
+Counter management is available internally:
+
+- `GET /api/internal/counters`
+- `POST /api/internal/counters`
+- `POST /api/internal/counters/:counterId/assignment`
+- `DELETE /api/internal/counters/:counterId/assignment`
+
+Sales-agent management is available internally:
+
+- `GET /api/internal/sales-agents`
+- `GET /api/internal/sales-agents/:agentId`
+- `POST /api/internal/sales-agents`
+- `PATCH /api/internal/sales-agents/:agentId`
+- `DELETE /api/internal/sales-agents/:agentId` (deactivates the agent)
+
+The public queue list is intentionally unavailable. The ticket status endpoint accepts `serving`, `completed`, `cancelled`, `skipped`, or `no_show`; the current lifecycle supports `pending -> serving -> completed`, cancellation from `pending` or `serving`, and skip/no-show from `pending` or `serving`. Recall is available for a serving ticket and records a new handling event. A phone number cannot create another queue on the same operating date across any branch until its earlier queue is completed. Staff authentication and counter authorization remain required before exposing these routes beyond a trusted internal network.
+
+For the current development implementation, internal requests must provide `X-Staff-Agent-Id` and `X-Staff-Counter-Id` headers. These headers are only a temporary staff-context adapter, not authentication, and should be replaced by token claims before production exposure.
+
+The branch queue status endpoint accepts `{ "operatingDate": "YYYYMMDD", "status": "open" | "closed" }`. A closed branch queue rejects new public tickets for that branch and date with `409 Conflict`. If no status row exists, public ticket creation returns `503 Service Unavailable`; the day must be explicitly configured as `open` or `closed` first.
+
+Ticket numbers remain simple, such as `HM-001`, but the sequence is scoped by branch, operating date, and service. The same display number can therefore exist at different branches or on different dates.
+
+Serving is rejected when the selected counter is already handling another ticket. Ticket status and queue-handling history are persisted together transactionally in the Prisma repository.
+
+Service codes are now validated against the `Service` master table and queue rows retain the legacy `serviceType` API field while storing a required `serviceId` foreign key. The service migration backfills existing queue rows from their legacy codes and aborts if an unknown code is found.
