@@ -32,6 +32,8 @@ function createQueueService(repository, now = () => new Date()) {
       }
       const service = await repository.findServiceByCode(input.serviceType);
       if (!service || service.status !== 'active') return { error: 'Invalid or inactive serviceType' };
+      const existingCustomer = await repository.findQueueByPhoneAndDate(input.phoneNumber, date);
+      if (existingCustomer) return { error: 'This phone number already has an unfinished queue for this date', duplicate: true };
       return {
         entry: await repository.createQueueEntry({
           ...input,
@@ -51,14 +53,52 @@ function createQueueService(repository, now = () => new Date()) {
       if (!assignment) return { error: 'Staff agent is not assigned to this counter or branch', forbidden: true };
       return { queue: await repository.setBranchQueueStatus(branchCode, operatingDate, status) };
     },
+    async startQueueDay(staff) {
+      const operatingDate = now().toISOString().slice(0, 10).replaceAll('-', '');
+      const staffBranch = await repository.findStaffBranch(staff.agentId);
+      if (!staffBranch) return { error: 'Staff agent is not active', forbidden: true };
+      const assignment = await repository.findActiveStaffAssignment(staff, staffBranch.code);
+      if (!assignment) return { error: 'Staff agent is not assigned to this counter or branch', forbidden: true };
+      const existing = await repository.findBranchQueueStatus(staffBranch.code, operatingDate);
+      if (!existing || !existing.startedAt) await repository.startQueueDay(staffBranch.code, operatingDate, now());
+      return this.dashboard(staff);
+    },
+    async dashboard(staff) {
+      const operatingDate = now().toISOString().slice(0, 10).replaceAll('-', '');
+      const staffBranch = await repository.findStaffBranch(staff.agentId);
+      if (!staffBranch) return { error: 'Staff agent is not active', forbidden: true };
+      const assignment = await repository.findActiveStaffAssignment(staff, staffBranch.code);
+      if (!assignment) return { error: 'Staff agent is not assigned to this counter or branch', forbidden: true };
+      const dashboard = await repository.getQueueDashboard(staffBranch.code, operatingDate, staff.counterId);
+      if (!dashboard.queueDay || !dashboard.queueDay.startedAt) return { error: 'Queue has not been started for today', notStarted: true };
+      const counter = await repository.findCounter(staff.counterId);
+      const startedAt = new Date(dashboard.queueDay.startedAt);
+      return {
+        dashboard: {
+          ...dashboard,
+          counter: counter ? { id: counter.id, code: counter.counterCode, name: counter.counterName } : null,
+          durationSeconds: Math.max(0, Math.floor((now() - startedAt) / 1000)),
+        },
+      };
+    },
     async changeTicketStatus(ticketNumber, status, staff) {
       const transitions = {
         serving: ['pending'],
         completed: ['serving'],
         cancelled: ['pending', 'serving'],
+        skipped: ['pending', 'serving'],
+        no_show: ['pending', 'serving'],
       };
       if (!transitions[status]) return { error: 'status must be serving, completed, or cancelled' };
       return transition(repository, ticketNumber, status, transitions[status], staff);
+    },
+    async recallTicket(ticketNumber, staff) {
+      const entry = await repository.findQueueByTicket(ticketNumber);
+      if (!entry) return { error: 'Ticket not found', notFound: true };
+      const assignment = await repository.findActiveStaffAssignment(staff, entry.branch.code);
+      if (!assignment) return { error: 'Staff agent is not assigned to this counter or branch', forbidden: true };
+      if (entry.status !== 'serving') return { error: `Cannot recall ticket from ${entry.status}` };
+      return { entry: await repository.recallQueue(ticketNumber, staff) };
     },
   };
 }

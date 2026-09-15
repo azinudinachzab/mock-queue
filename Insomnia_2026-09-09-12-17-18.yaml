@@ -74,6 +74,28 @@ collection:
       id: fld_internal_queue
       description: Staff routes. Replace temporary headers when authentication is implemented.
     children:
+      - url: "{{ _.BASE_URL }}/api/internal/dashboard/start"
+        name: POST Start Today Queue
+        meta:
+          id: req_internal_dashboard_start
+          description: Opens today's queue day for the staff member's assigned branch and counter.
+        method: POST
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/dashboard"
+        name: GET Queue Dashboard Summary
+        meta:
+          id: req_internal_dashboard_summary
+          description: Returns branch, counter, duration, waiting count, current ticket, and next ticket.
+        method: GET
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
       - url: "{{ _.BASE_URL }}/api/internal/queue"
         name: GET List Queue
         meta:
@@ -147,6 +169,53 @@ collection:
         headers:
           - name: Content-Type
             value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/queue/HM-001/status"
+        name: PATCH Change Ticket Status - Skipped
+        meta:
+          id: req_internal_ticket_skipped
+        method: PATCH
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "status": "skipped"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/queue/HM-001/status"
+        name: PATCH Change Ticket Status - No Show
+        meta:
+          id: req_internal_ticket_no_show
+        method: PATCH
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "status": "no_show"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/queue/HM-001/recall"
+        name: POST Recall Ticket
+        meta:
+          id: req_internal_ticket_recall
+          description: Recalls a ticket currently being served and records a new handling event.
+        method: POST
+        headers:
           - name: X-Staff-Agent-Id
             value: "1"
           - name: X-Staff-Counter-Id

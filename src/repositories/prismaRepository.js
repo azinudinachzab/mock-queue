@@ -93,6 +93,13 @@ function createPrismaRepository(prisma) {
         update: { status },
       });
     },
+    async startQueueDay(branchCode, operatingDate, startedAt) {
+      return prisma.branchQueueDay.upsert({
+        where: { branchCode_operatingDate: { branchCode, operatingDate } },
+        create: { branchCode, operatingDate, status: 'open', startedAt },
+        update: { status: 'open', startedAt },
+      });
+    },
     async listQueue(status) {
       const entries = await prisma.queueEntry.findMany({
         where: status ? { status } : undefined,
@@ -101,10 +108,47 @@ function createPrismaRepository(prisma) {
       });
       return entries.map(toQueueEntry);
     },
+    async getQueueDashboard(branchCode, operatingDate, counterId) {
+      const [queueDay, entries, handling, branch] = await Promise.all([
+        this.findBranchQueueStatus(branchCode, operatingDate),
+        prisma.queueEntry.findMany({
+          where: { branchCode, queueDate: new Date(`${operatingDate.slice(0, 4)}-${operatingDate.slice(4, 6)}-${operatingDate.slice(6, 8)}T00:00:00.000Z`) },
+          include: { branch: true },
+          orderBy: { id: 'asc' },
+        }),
+        prisma.queueHandling.findFirst({
+          where: { counterId, status: 'serving', queue: { branchCode } },
+          include: { queue: true },
+          orderBy: { id: 'desc' },
+        }),
+        this.findBranchByCode(branchCode),
+      ]);
+      const pending = entries.filter((entry) => entry.status === 'pending');
+      return {
+        branch: toBranch(branch),
+        queueDay,
+        counterId,
+        waitingCount: pending.length,
+        currentTicket: handling ? handling.queue.ticketNumber : null,
+        nextTicket: pending.length ? pending[0].ticketNumber : null,
+      };
+    },
     async findQueueByTicket(ticketNumber, branchCode) {
       const entry = await prisma.queueEntry.findFirst({
         where: { ticketNumber, ...(branchCode ? { branchCode } : {}) },
         include: { branch: true },
+      });
+      return entry ? toQueueEntry(entry) : null;
+    },
+    async findQueueByPhoneAndDate(phoneNumber, operatingDate) {
+      const entry = await prisma.queueEntry.findFirst({
+        where: {
+          phoneNumber,
+          queueDate: new Date(`${operatingDate.slice(0, 4)}-${operatingDate.slice(4, 6)}-${operatingDate.slice(6, 8)}T00:00:00.000Z`),
+          status: { not: 'completed' },
+        },
+        include: { branch: true },
+        orderBy: { id: 'asc' },
       });
       return entry ? toQueueEntry(entry) : null;
     },
@@ -181,6 +225,36 @@ function createPrismaRepository(prisma) {
             });
           }
         }
+        return toQueueEntry(entry);
+      });
+    },
+    async recallQueue(ticketNumber, staff) {
+      return prisma.$transaction(async (transaction) => {
+        const existing = await transaction.queueEntry.findFirst({ where: { ticketNumber }, include: { branch: true } });
+        const handling = await transaction.queueHandling.findFirst({
+          where: { queueId: existing.id, status: 'serving' },
+          orderBy: { id: 'desc' },
+        });
+        if (handling) {
+          await transaction.queueHandling.update({
+            where: { id: handling.id },
+            data: { endTime: new Date(), status: 'recalled' },
+          });
+        }
+        await transaction.queueHandling.create({
+          data: {
+            queueId: existing.id,
+            salesAgentId: staff.agentId,
+            counterId: staff.counterId,
+            startTime: new Date(),
+            status: 'serving',
+          },
+        });
+        const entry = await transaction.queueEntry.update({
+          where: { id: existing.id },
+          data: { status: 'serving' },
+          include: { branch: true },
+        });
         return toQueueEntry(entry);
       });
     },

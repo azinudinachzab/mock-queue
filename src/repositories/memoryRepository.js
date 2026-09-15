@@ -86,11 +86,24 @@ function createMemoryRepository() {
     },
     async findBranchQueueStatus(branchCode, operatingDate) {
       const status = branchQueueStatuses.get(`${branchCode}:${operatingDate}`);
-      return status ? { branchCode, operatingDate, status } : null;
+      if (!status) return null;
+      return typeof status === 'string' ? { branchCode, operatingDate, status } : status;
     },
     async setBranchQueueStatus(branchCode, operatingDate, status) {
-      branchQueueStatuses.set(`${branchCode}:${operatingDate}`, status);
-      return { branchCode, operatingDate, status };
+      const existing = branchQueueStatuses.get(`${branchCode}:${operatingDate}`);
+      const queueDay = {
+        branchCode,
+        operatingDate,
+        status,
+        startedAt: existing && typeof existing === 'object' ? existing.startedAt : null,
+      };
+      branchQueueStatuses.set(`${branchCode}:${operatingDate}`, queueDay);
+      return queueDay;
+    },
+    async startQueueDay(branchCode, operatingDate, startedAt) {
+      const queueDay = { branchCode, operatingDate, status: 'open', startedAt };
+      branchQueueStatuses.set(`${branchCode}:${operatingDate}`, queueDay);
+      return queueDay;
     },
     async findBranchByCode(code) {
       return branches.find((branch) => branch.code === code) || null;
@@ -98,8 +111,29 @@ function createMemoryRepository() {
     async listQueue(status) {
       return status ? queue.filter((entry) => entry.status === status) : [...queue];
     },
+    async getQueueDashboard(branchCode, operatingDate, counterId) {
+      const queueDay = await this.findBranchQueueStatus(branchCode, operatingDate);
+      const entries = queue.filter((entry) => entry.branch.code === branchCode
+        && entry.queueDate.slice(0, 10).replaceAll('-', '') === operatingDate);
+      const handling = queueHandling.find((item) => item.counterId === counterId && item.status === 'serving');
+      const current = handling ? queue.find((entry) => entry.id === handling.queueId) : null;
+      const next = entries.find((entry) => entry.status === 'pending') || null;
+      return {
+        branch: await this.findBranchByCode(branchCode),
+        queueDay,
+        counterId,
+        waitingCount: entries.filter((entry) => entry.status === 'pending').length,
+        currentTicket: current ? current.ticketNumber : null,
+        nextTicket: next ? next.ticketNumber : null,
+      };
+    },
     async findQueueByTicket(ticketNumber, branchCode) {
       return queue.find((entry) => entry.ticketNumber === ticketNumber && (!branchCode || entry.branch.code === branchCode)) || null;
+    },
+    async findQueueByPhoneAndDate(phoneNumber, operatingDate) {
+      return queue.find((entry) => entry.phoneNumber === phoneNumber
+        && entry.queueDate.slice(0, 10).replaceAll('-', '') === operatingDate
+        && entry.status !== 'completed') || null;
     },
     async updateQueueStatus(ticketNumber, status) {
       const entry = queue.find((item) => item.ticketNumber === ticketNumber);
@@ -144,6 +178,13 @@ function createMemoryRepository() {
       entry.status = status;
       if (status === 'serving') await this.createQueueHandling(entry, staff);
       else await this.closeQueueHandling(entry.id, status);
+      return entry;
+    },
+    async recallQueue(ticketNumber, staff) {
+      const entry = queue.find((item) => item.ticketNumber === ticketNumber);
+      await this.closeQueueHandling(entry.id, 'recalled');
+      await this.createQueueHandling(entry, staff);
+      entry.updatedAt = new Date().toISOString();
       return entry;
     },
     async createQueueEntry(input) {

@@ -72,9 +72,12 @@ Customer-facing endpoints are under `/api/public`:
 
 Staff-facing queue monitoring is under `/api/internal`:
 
+- `POST /api/internal/dashboard/start`
+- `GET /api/internal/dashboard`
 - `GET /api/internal/queue`
 - `GET /api/internal/queue/:ticketNumber`
 - `PATCH /api/internal/queue/:ticketNumber/status`
+- `POST /api/internal/queue/:ticketNumber/recall`
 - `PATCH /api/internal/branches/:branchCode/queue-status`
 
 Counter management is available internally:
@@ -92,7 +95,7 @@ Sales-agent management is available internally:
 - `PATCH /api/internal/sales-agents/:agentId`
 - `DELETE /api/internal/sales-agents/:agentId` (deactivates the agent)
 
-The public queue list is intentionally unavailable. The ticket status endpoint accepts `serving`, `completed`, or `cancelled`; the current lifecycle supports `pending -> serving -> completed` and cancellation from `pending` or `serving`. Staff authentication and counter authorization remain required before exposing these routes beyond a trusted internal network.
+The public queue list is intentionally unavailable. The ticket status endpoint accepts `serving`, `completed`, `cancelled`, `skipped`, or `no_show`; the current lifecycle supports `pending -> serving -> completed`, cancellation from `pending` or `serving`, and skip/no-show from `pending` or `serving`. Recall is available for a serving ticket and records a new handling event. A phone number cannot create another queue on the same operating date across any branch until its earlier queue is completed. Staff authentication and counter authorization remain required before exposing these routes beyond a trusted internal network.
 
 For the current development implementation, internal requests must provide `X-Staff-Agent-Id` and `X-Staff-Counter-Id` headers. These headers are only a temporary staff-context adapter, not authentication, and should be replaced by token claims before production exposure.
 

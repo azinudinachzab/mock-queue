@@ -197,14 +197,14 @@ test('rejects invalid phone numbers and locations outside 2 km', async () => {
 test('keeps queue sequences separate by service type', async () => {
   const server = app.listen(0);
   try {
-    const create = (serviceType) => request(server, 'POST', '/api/queue', {
-      branchCode: 'BR-001', name: 'Valid Name', phoneNumber: '0123456789', serviceType,
+    const create = (serviceType, phoneNumber) => request(server, 'POST', '/api/queue', {
+      branchCode: 'BR-001', name: 'Valid Name', phoneNumber, serviceType,
       latitude: 3.139003, longitude: 101.686855,
     });
-    const firstHmTicket = (await create('HM')).body.ticketNumber;
-    const secondHmTicket = (await create('HM')).body.ticketNumber;
+    const firstHmTicket = (await create('HM', '0123456789')).body.ticketNumber;
+    const secondHmTicket = (await create('HM', '0123456791')).body.ticketNumber;
     assert.equal(Number(secondHmTicket.slice(3)), Number(firstHmTicket.slice(3)) + 1);
-    assert.equal((await create('SF')).body.ticketNumber, 'SF-001');
+    assert.equal((await create('SF', '0123456792')).body.ticketNumber, 'SF-001');
   } finally {
     await close(server);
   }
@@ -213,13 +213,13 @@ test('keeps queue sequences separate by service type', async () => {
 test('keeps queue sequences separate by branch', async () => {
   const server = app.listen(0);
   try {
-    const create = (branchCode) => request(server, 'POST', '/api/public/queue', {
-      branchCode, name: 'Valid Name', phoneNumber: '0123456789', serviceType: 'HM',
+    const create = (branchCode, phoneNumber) => request(server, 'POST', '/api/public/queue', {
+      branchCode, name: 'Valid Name', phoneNumber, serviceType: 'HM',
       latitude: branchCode === 'BR-001' ? 3.139003 : 3.173825,
       longitude: branchCode === 'BR-001' ? 101.686855 : 101.689674,
     });
-    assert.match((await create('BR-001')).body.ticketNumber, /^HM-\d{3}$/);
-    const secondBranchTicket = (await create('BR-002')).body.ticketNumber;
+    assert.match((await create('BR-001', '0123456789')).body.ticketNumber, /^HM-\d{3}$/);
+    const secondBranchTicket = (await create('BR-002', '0123456793')).body.ticketNumber;
     assert.equal(secondBranchTicket, 'HM-001');
 
     const branchTicket = await request(server, 'GET', `/api/public/branches/BR-002/queue/${secondBranchTicket}`);
@@ -245,11 +245,41 @@ test('separates public creation from internal queue monitoring', async () => {
   }
 });
 
+test('opens today queue and returns the database-backed dashboard summary', async () => {
+  const server = app.listen(0);
+  const staffHeaders = { 'x-staff-agent-id': '1', 'x-staff-counter-id': '1' };
+  try {
+    const beforeStart = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
+    assert.equal(beforeStart.status, 409);
+    const started = await requestWithHeaders(server, 'POST', '/api/internal/dashboard/start', staffHeaders);
+    assert.equal(started.status, 200);
+    assert.equal(started.body.branch.code, 'BR-001');
+    assert.equal(started.body.counter.code, 'CTR-001');
+    assert.equal(started.body.queueDay.status, 'open');
+    assert.ok(started.body.queueDay.startedAt);
+    assert.ok(started.body.durationSeconds >= 0);
+    assert.equal(started.body.waitingCount, 0);
+
+    const created = await request(server, 'POST', '/api/public/queue', {
+      branchCode: 'BR-001', name: 'Dashboard Customer', phoneNumber: '0123456789', serviceType: 'HM',
+      latitude: 3.139003, longitude: 101.686855,
+    });
+    assert.equal(created.status, 201);
+    const dashboard = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
+    assert.equal(dashboard.status, 200);
+    assert.equal(dashboard.body.waitingCount, 1);
+    assert.equal(dashboard.body.nextTicket, created.body.ticketNumber);
+  } finally {
+    await close(server);
+  }
+});
+
 test('allows staff to transition tickets through internal queue actions', async () => {
   const server = app.listen(0);
   try {
     const created = await request(server, 'POST', '/api/public/queue', {
       branchCode: 'BR-001', name: 'Valid Name', phoneNumber: '0123456789', serviceType: 'HM',
+
       latitude: 3.139003, longitude: 101.686855,
     });
     const ticketNumber = created.body.ticketNumber;
@@ -264,7 +294,7 @@ test('allows staff to transition tickets through internal queue actions', async 
     assert.equal(invalidRestart.status, 409);
 
     const secondCreated = await request(server, 'POST', '/api/public/queue', {
-      branchCode: 'BR-001', name: 'Another Name', phoneNumber: '0123456789', serviceType: 'HM',
+      branchCode: 'BR-001', name: 'Another Name', phoneNumber: '0123456790', serviceType: 'HM',
       latitude: 3.139003, longitude: 101.686855,
     });
     const cancelled = await request(server, 'PATCH', `/api/internal/queue/${secondCreated.body.ticketNumber}/status`, { status: 'cancelled' }, staffHeaders);
@@ -325,12 +355,12 @@ test('staff can manage counters and cannot serve two tickets on one counter', as
       salesAgentId: 1,
     }, staffHeaders);
     assert.equal(assigned.status, 200);
-    const create = (name) => request(server, 'POST', '/api/public/queue', {
-      branchCode: 'BR-001', name, phoneNumber: '0123456789', serviceType: 'HM',
+    const create = (name, phoneNumber) => request(server, 'POST', '/api/public/queue', {
+      branchCode: 'BR-001', name, phoneNumber, serviceType: 'HM',
       latitude: 3.139003, longitude: 101.686855,
     });
-    const first = await create('First Customer');
-    const second = await create('Second Customer');
+    const first = await create('First Customer', '0123456789');
+    const second = await create('Second Customer', '0123456794');
     const started = await request(server, 'PATCH', `/api/internal/queue/${first.body.ticketNumber}/status`, { status: 'serving' }, staffHeaders);
     assert.equal(started.status, 200);
     const busy = await request(server, 'PATCH', `/api/internal/queue/${second.body.ticketNumber}/status`, { status: 'serving' }, staffHeaders);

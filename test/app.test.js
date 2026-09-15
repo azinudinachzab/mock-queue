@@ -121,16 +121,16 @@ test('keeps queue sequences separate by service type', async () => {
   queue.length = 0;
   const server = app.listen(0);
   try {
-    const create = (serviceType) => request(server, 'POST', '/api/queue', {
+    const create = (serviceType, phoneNumber) => request(server, 'POST', '/api/queue', {
       branchCode: 'BR-001',
-      name: 'Valid Name', phoneNumber: '0123456789', serviceType,
+      name: 'Valid Name', phoneNumber, serviceType,
       latitude: 3.139003, longitude: 101.686855,
     });
 
-    const firstHmTicket = (await create('HM')).body.ticketNumber;
-    const secondHmTicket = (await create('HM')).body.ticketNumber;
+    const firstHmTicket = (await create('HM', '0123456789')).body.ticketNumber;
+    const secondHmTicket = (await create('HM', '0123456790')).body.ticketNumber;
     assert.equal(Number(secondHmTicket.slice(3)), Number(firstHmTicket.slice(3)) + 1);
-    assert.equal((await create('SF')).body.ticketNumber, 'SF-001');
+    assert.equal((await create('SF', '0123456791')).body.ticketNumber, 'SF-001');
   } finally {
     server.close();
   }
@@ -140,15 +140,15 @@ test('keeps queue sequences separate by branch', async () => {
   queue.length = 0;
   const server = app.listen(0);
   try {
-    const create = (branchCode) => request(server, 'POST', '/api/public/queue', {
+    const create = (branchCode, phoneNumber) => request(server, 'POST', '/api/public/queue', {
       branchCode,
-      name: 'Valid Name', phoneNumber: '0123456789', serviceType: 'HM',
+      name: 'Valid Name', phoneNumber, serviceType: 'HM',
       latitude: branchCode === 'BR-001' ? 3.139003 : 3.173825,
       longitude: branchCode === 'BR-001' ? 101.686855 : 101.689674,
     });
 
-    assert.match((await create('BR-001')).body.ticketNumber, /^HM-\d{3}$/);
-    const secondBranchTicket = (await create('BR-002')).body.ticketNumber;
+    assert.match((await create('BR-001', '0123456789')).body.ticketNumber, /^HM-\d{3}$/);
+    const secondBranchTicket = (await create('BR-002', '0123456792')).body.ticketNumber;
     assert.equal(secondBranchTicket, 'HM-001');
 
     const branchTicket = await request(server, 'GET', `/api/public/branches/BR-002/queue/${secondBranchTicket}`);
@@ -171,6 +171,36 @@ test('separates public creation from internal queue monitoring', async () => {
     });
     assert.equal(internalList.status, 200);
     assert.deepEqual(internalList.body, []);
+  } finally {
+    server.close();
+  }
+});
+
+test('starts today queue and returns counter dashboard data', async () => {
+  queue.length = 0;
+  const server = app.listen(0);
+  const staffHeaders = { 'x-staff-agent-id': '1', 'x-staff-counter-id': '1' };
+  try {
+    const notStarted = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
+    assert.equal(notStarted.status, 409);
+
+    const created = await request(server, 'POST', '/api/public/queue', {
+      branchCode: 'BR-001', name: 'Dashboard Customer', phoneNumber: '0123456789', serviceType: 'HM',
+      latitude: 3.139003, longitude: 101.686855,
+    });
+    const started = await requestWithHeaders(server, 'POST', '/api/internal/dashboard/start', staffHeaders);
+    assert.equal(started.status, 200);
+    assert.equal(started.body.branch.code, 'BR-001');
+    assert.equal(started.body.counter.id, 1);
+    assert.equal(started.body.waitingCount, 1);
+    assert.equal(started.body.currentTicket, null);
+    assert.equal(started.body.nextTicket, created.body.ticketNumber);
+    assert.ok(started.body.queueDay.startedAt);
+    assert.ok(started.body.durationSeconds >= 0);
+
+    const dashboard = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
+    assert.equal(dashboard.status, 200);
+    assert.equal(dashboard.body.nextTicket, created.body.ticketNumber);
   } finally {
     server.close();
   }
@@ -208,6 +238,63 @@ test('allows staff to transition tickets through internal queue actions', async 
 
     assert.equal(repository.queueHandling.length, 1);
     assert.equal(repository.queueHandling[0].status, 'completed');
+  } finally {
+    server.close();
+  }
+});
+
+test('prevents an unfinished same-day queue for the same phone across branches', async () => {
+  queue.length = 0;
+  const server = app.listen(0);
+  try {
+    const create = (branchCode, phoneNumber) => request(server, 'POST', '/api/public/queue', {
+      branchCode, name: 'Valid Name', phoneNumber, serviceType: 'HM',
+      latitude: branchCode === 'BR-001' ? 3.139003 : 3.173825,
+      longitude: branchCode === 'BR-001' ? 101.686855 : 101.689674,
+    });
+    const first = await create('BR-001', '0123456789');
+    const duplicate = await create('BR-002', '0123456789');
+    assert.equal(first.status, 201);
+    assert.equal(duplicate.status, 409);
+
+    const staffHeaders = { 'x-staff-agent-id': '1', 'x-staff-counter-id': '1' };
+    const completed = await request(server, 'PATCH', `/api/internal/queue/${first.body.ticketNumber}/status`, { status: 'serving' }, staffHeaders);
+    assert.equal(completed.status, 200);
+    await request(server, 'PATCH', `/api/internal/queue/${first.body.ticketNumber}/status`, { status: 'completed' }, staffHeaders);
+    const allowed = await create('BR-002', '0123456789');
+    assert.equal(allowed.status, 201);
+  } finally {
+    server.close();
+  }
+});
+
+test('supports skip, no-show, and recall queue actions', async () => {
+  queue.length = 0;
+  const server = app.listen(0);
+  const staffHeaders = { 'x-staff-agent-id': '1', 'x-staff-counter-id': '1' };
+  try {
+    const create = (phoneNumber) => request(server, 'POST', '/api/public/queue', {
+      branchCode: 'BR-001', name: 'Valid Name', phoneNumber, serviceType: 'HM',
+      latitude: 3.139003, longitude: 101.686855,
+    });
+    const skipped = await create('0123456789');
+    const skippedResult = await request(server, 'PATCH', `/api/internal/queue/${skipped.body.ticketNumber}/status`, { status: 'skipped' }, staffHeaders);
+    assert.equal(skippedResult.status, 200);
+    assert.equal(skippedResult.body.status, 'skipped');
+
+    const noShow = await create('0123456790');
+    const noShowResult = await request(server, 'PATCH', `/api/internal/queue/${noShow.body.ticketNumber}/status`, { status: 'no_show' }, staffHeaders);
+    assert.equal(noShowResult.status, 200);
+    assert.equal(noShowResult.body.status, 'no_show');
+
+    const recalled = await create('0123456791');
+    await request(server, 'PATCH', `/api/internal/queue/${recalled.body.ticketNumber}/status`, { status: 'serving' }, staffHeaders);
+    const recalledResult = await request(server, 'POST', `/api/internal/queue/${recalled.body.ticketNumber}/recall`, undefined, staffHeaders);
+    assert.equal(recalledResult.status, 200);
+    assert.equal(recalledResult.body.status, 'serving');
+    assert.equal(repository.queueHandling.filter((handling) => handling.queueId === recalled.body.id).length, 2);
+    assert.equal(repository.queueHandling.find((handling) => handling.queueId === recalled.body.id).status, 'recalled');
+    await request(server, 'PATCH', `/api/internal/queue/${recalled.body.ticketNumber}/status`, { status: 'completed' }, staffHeaders);
   } finally {
     server.close();
   }
@@ -275,11 +362,11 @@ test('staff can manage counters and cannot serve two tickets on one counter', as
     assert.equal(assigned.status, 200);
 
     const first = await request(server, 'POST', '/api/public/queue', {
-      branchCode: 'BR-001', name: 'First Customer', phoneNumber: '0123456789', serviceType: 'HM',
+      branchCode: 'BR-001', name: 'First Customer', phoneNumber: '0123456794', serviceType: 'HM',
       latitude: 3.139003, longitude: 101.686855,
     });
     const second = await request(server, 'POST', '/api/public/queue', {
-      branchCode: 'BR-001', name: 'Second Customer', phoneNumber: '0123456789', serviceType: 'HM',
+      branchCode: 'BR-001', name: 'Second Customer', phoneNumber: '0123456795', serviceType: 'HM',
       latitude: 3.139003, longitude: 101.686855,
     });
 

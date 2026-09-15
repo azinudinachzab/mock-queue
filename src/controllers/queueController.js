@@ -14,6 +14,10 @@ function createQueueController(queueService) {
       res,
       await queueService.changeTicketStatus(req.params.ticketNumber, req.body.status, req.staff),
     ),
+    recallTicket: async (req, res) => respondToTransition(
+      res,
+      await queueService.recallTicket(req.params.ticketNumber, req.staff),
+    ),
     changeBranchQueueStatus: async (req, res) => {
       const result = await queueService.changeBranchQueueStatus(
         req.params.branchCode,
@@ -24,9 +28,17 @@ function createQueueController(queueService) {
       if (result.error) return res.status(result.notFound ? 404 : result.forbidden ? 403 : 400).json({ error: result.error });
       return res.json(result.queue);
     },
+    startQueueDay: async (req, res) => respondToDashboard(
+      res,
+      await queueService.startQueueDay(req.staff),
+    ),
+    dashboard: async (req, res) => respondToDashboard(
+      res,
+      await queueService.dashboard(req.staff),
+    ),
     create: async (req, res) => {
       const result = await queueService.create(req.body);
-      if (result.error) return res.status(result.closed ? 409 : result.queueStatusNotFound ? 503 : 400).json({ error: result.error });
+      if (result.error) return res.status(result.closed || result.duplicate ? 409 : result.queueStatusNotFound ? 503 : 400).json({ error: result.error });
       return res.status(201).json(result.entry);
     },
   };
@@ -35,6 +47,11 @@ function createQueueController(queueService) {
 function respondToTransition(res, result) {
   if (result.error) return res.status(result.notFound ? 404 : result.forbidden ? 403 : result.conflict ? 409 : 409).json({ error: result.error });
   return res.json(result.entry);
+}
+
+function respondToDashboard(res, result) {
+  if (result.error) return res.status(result.forbidden ? 403 : result.notStarted ? 409 : 400).json({ error: result.error });
+  return res.json(result.dashboard);
 }
 
 module.exports = { createQueueController };
