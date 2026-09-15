@@ -277,11 +277,7 @@ test('opens today queue and returns the database-backed dashboard summary', asyn
     const dashboard = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
     assert.equal(dashboard.status, 200);
     assert.equal(dashboard.body.waitingCount, 1);
-    assert.deepEqual(dashboard.body.nextTicket, [{
-      ticketNumber: created.body.ticketNumber,
-      date: created.body.queueDate,
-      status: 'pending',
-    }]);
+    assert.equal(dashboard.body.nextTicket, created.body.ticketNumber);
   } finally {
     await close(server);
   }

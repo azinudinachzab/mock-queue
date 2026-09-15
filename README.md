@@ -105,6 +105,6 @@ An open queue day must also be started by staff through `POST /api/internal/dash
 
 Ticket numbers remain simple, such as `HM-001`, but the sequence is scoped by branch, operating date, and service. The same display number can therefore exist at different branches or on different dates.
 
-Serving is rejected when the selected counter is already handling another ticket. Dashboard `currentTicket` and `nextTicket` are arrays of `{ ticketNumber, date, status }` objects; they are empty when no matching ticket exists, and pending tickets are ordered by queue creation. Ticket status and queue-handling history are persisted together transactionally in the Prisma repository.
+Serving is rejected when the selected counter is already handling another ticket. Ticket status and queue-handling history are persisted together transactionally in the Prisma repository.
 
 Service codes are now validated against the `Service` master table and queue rows retain the legacy `serviceType` API field while storing a required `serviceId` foreign key. The service migration backfills existing queue rows from their legacy codes and aborts if an unknown code is found.

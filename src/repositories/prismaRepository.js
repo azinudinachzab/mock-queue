@@ -129,8 +129,8 @@ function createPrismaRepository(prisma) {
         queueDay,
         counterId,
         waitingCount: pending.length,
-        currentTicket: handling ? [ticketSummary(handling.queue)] : [],
-        nextTicket: pending.map(ticketSummary),
+        currentTicket: handling ? handling.queue.ticketNumber : 0,
+        nextTicket: pending.length ? pending[0].ticketNumber : 0,
       };
     },
     async findQueueByTicket(ticketNumber, branchCode) {
@@ -311,14 +311,6 @@ function createPrismaRepository(prisma) {
 
 function operatingDateDate(operatingDate) {
   return new Date(`${operatingDate.slice(0, 4)}-${operatingDate.slice(4, 6)}-${operatingDate.slice(6, 8)}T00:00:00.000Z`);
-}
-
-function ticketSummary(entry) {
-  return {
-    ticketNumber: entry.ticketNumber,
-    date: entry.queueDate,
-    status: entry.status,
-  };
 }
 
 function toQueueEntry(entry) {
