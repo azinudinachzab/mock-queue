@@ -79,6 +79,16 @@ async function main() {
         });
       }
     }
+    const seededServices = await prisma.service.findMany({
+      where: { code: { in: services.map((service) => service.code) } },
+    });
+    await prisma.counterServiceMapping.createMany({
+      data: seededServices.map((service) => ({
+        counterId: seededCounter.id,
+        serviceId: service.id,
+      })),
+      skipDuplicates: true,
+    });
   }
 }
 

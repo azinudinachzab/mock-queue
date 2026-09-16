@@ -32,6 +32,7 @@ async function resetDatabase() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE
     "QueueHandling",
     "CounterAssignment",
+    "CounterServiceMapping",
     "QueueEntry",
     "DailySequence",
     "BranchQueueDay",
@@ -63,6 +64,7 @@ async function resetDatabase() {
         counterCode: counter.counterCode,
         counterName: counter.counterName,
         status: counter.status,
+        counterType: counter.counterType,
         branchId: branch.id,
       },
     });
@@ -70,6 +72,13 @@ async function resetDatabase() {
 
   const agents = await prisma.salesAgent.findMany({ orderBy: { id: 'asc' } });
   const seededCounters = await prisma.counter.findMany({ orderBy: { id: 'asc' } });
+  const seededServices = await prisma.service.findMany({ orderBy: { id: 'asc' } });
+  await prisma.counterServiceMapping.createMany({
+    data: seededCounters.flatMap((counter) => seededServices.map((service) => ({
+      counterId: counter.id,
+      serviceId: service.id,
+    }))),
+  });
   await prisma.counterAssignment.createMany({
     data: seededCounters.map((counter, index) => ({
       counterId: counter.id,
@@ -268,6 +277,8 @@ test('opens today queue and returns the database-backed dashboard summary', asyn
     assert.ok(started.body.queueDay.startedAt);
     assert.ok(started.body.durationSeconds >= 0);
     assert.equal(started.body.waitingCount, 0);
+    assert.equal(started.body.currentQueue, 0);
+    assert.equal(typeof started.body.availableCounterCount, 'number');
 
     const created = await request(server, 'POST', '/api/public/queue', {
       branchCode: 'BR-001', name: 'Dashboard Customer', phoneNumber: '0123456789', serviceType: 'HM',
@@ -277,6 +288,7 @@ test('opens today queue and returns the database-backed dashboard summary', asyn
     const dashboard = await requestWithHeaders(server, 'GET', '/api/internal/dashboard', staffHeaders);
     assert.equal(dashboard.status, 200);
     assert.equal(dashboard.body.waitingCount, 1);
+    assert.equal(dashboard.body.currentQueue, 1);
     assert.equal(dashboard.body.nextTicket, created.body.ticketNumber);
   } finally {
     await close(server);
