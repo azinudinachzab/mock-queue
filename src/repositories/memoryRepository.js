@@ -9,7 +9,11 @@ function createMemoryRepository() {
   const queueHandling = [];
   const branchQueueStatuses = new Map();
   const agents = seededAgents.map((agent, index) => ({ id: index + 1, ...agent, code: agent.branchCode }));
-  const counters = seededCounters.map((counter, index) => ({ id: index + 1, ...counter }));
+  const counters = seededCounters.map((counter, index) => ({ id: index + 1, counterType: 'regular', ...counter }));
+  const counterServiceMappings = counters.flatMap((counter) => services.map((service) => ({
+    counterId: counter.id,
+    serviceType: service.code,
+  })));
   const assignments = counters.map((counter, index) => ({
     id: index + 1,
     agentId: index + 1,
@@ -25,6 +29,7 @@ function createMemoryRepository() {
     services,
     counters,
     assignments,
+      counterServiceMappings,
     async getStaffBranch(agentId, branchCode) {
       const agent = agents.find((item) => item.id === agentId && item.status === 'active');
       if (!agent) return { error: 'Staff agent is not active', forbidden: true };
@@ -52,11 +57,25 @@ function createMemoryRepository() {
     async findStaffBranch(agentId) {
       return agents.find((agent) => agent.id === agentId && agent.status === 'active') || null;
     },
-    async listCounters(branchCode) {
-      return counters.filter((counter) => counter.branchCode === branchCode);
+    async listCounters(branchCode, agentId) {
+      return Promise.all(counters.filter((counter) => counter.branchCode === branchCode)
+        .map(async (counter) => ({
+          ...counter,
+          serviceTypes: await this.listCounterServiceTypes(counter.id),
+          availableForAgent: !agentId || !assignments.some((assignment) => assignment.counterId === counter.id
+            && assignment.status === 'active' && assignment.agentId !== agentId)
+            && !queueHandling.some((handling) => handling.counterId === counter.id && handling.status === 'serving'),
+          ...(agentId ? { availability: 'available' } : {}),
+        })));
     },
     async findCounter(counterId) {
-      return counters.find((counter) => counter.id === counterId) || null;
+      const counter = counters.find((item) => item.id === counterId);
+      return counter ? {
+        ...counter, serviceTypes: await this.listCounterServiceTypes(counterId), availableForAgent: true,
+      } : null;
+    },
+    async findCounterByCode(counterCode) {
+      return counters.find((counter) => counter.counterCode === counterCode) || null;
     },
     async createCounter(input) {
       const counter = {
@@ -65,8 +84,19 @@ function createMemoryRepository() {
         counterCode: input.counterCode,
         counterName: input.counterName,
         status: input.status || 'active',
+        counterType: input.counterType || 'regular',
       };
       counters.push(counter);
+      return counter;
+    },
+    async updateCounter(counterId, input) {
+      const counter = counters.find((item) => item.id === counterId);
+      Object.assign(counter, {
+        ...(input.counterCode !== undefined ? { counterCode: input.counterCode } : {}),
+        ...(input.counterName !== undefined ? { counterName: input.counterName } : {}),
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.counterType !== undefined ? { counterType: input.counterType } : {}),
+      });
       return counter;
     },
     async assignCounter(counterId, salesAgentId) {
@@ -81,8 +111,45 @@ function createMemoryRepository() {
       if (assignment) assignment.status = 'inactive';
       return assignment || null;
     },
+    async selectCounter(counterId, agentId, branchCode) {
+      const counter = counters.find((item) => item.id === counterId && item.branchCode === branchCode && item.status === 'active');
+      if (!counter) return null;
+      if (queueHandling.some((handling) => handling.counterId === counterId && handling.status === 'serving')) return null;
+      const occupied = assignments.find((assignment) => assignment.counterId === counterId
+        && assignment.status === 'active' && assignment.agentId !== agentId);
+      if (occupied) return null;
+      let assignment = assignments.find((item) => item.counterId === counterId && item.agentId === agentId && item.status === 'active');
+      if (!assignment) {
+        assignment = { id: assignments.length + 1, counterId, agentId, branchCode, status: 'active' };
+        assignments.push(assignment);
+      }
+      return { ...(await this.findCounter(counterId)), availability: 'occupied', assignedAgentId: agentId };
+    },
+    async releaseCounter(counterId, agentId, branchCode) {
+      if (queueHandling.some((handling) => handling.counterId === counterId && handling.status === 'serving')) return null;
+      const assignment = [...assignments].reverse().find((item) => item.counterId === counterId
+        && item.agentId === agentId && item.branchCode === branchCode && item.status === 'active');
+      if (!assignment) return null;
+      assignment.status = 'inactive';
+      return { ...(await this.findCounter(counterId)), availability: 'available' };
+    },
     async findServiceByCode(code) {
       return services.find((service) => service.code === code) || null;
+    },
+    async listServices() {
+      return services.filter((service) => service.status === 'active');
+    },
+    async listCounterServiceTypes(counterId) {
+      return counterServiceMappings
+        .filter((mapping) => mapping.counterId === counterId)
+        .map((mapping) => mapping.serviceType);
+    },
+    async updateCounterServiceTypes(counterId, serviceTypes) {
+      for (let index = counterServiceMappings.length - 1; index >= 0; index -= 1) {
+        if (counterServiceMappings[index].counterId === counterId) counterServiceMappings.splice(index, 1);
+      }
+      serviceTypes.forEach((serviceType) => counterServiceMappings.push({ counterId, serviceType }));
+      return serviceTypes;
     },
     async findBranchQueueStatus(branchCode, operatingDate) {
       const status = branchQueueStatuses.get(`${branchCode}:${operatingDate}`);
@@ -117,15 +184,35 @@ function createMemoryRepository() {
         && entry.queueDate.slice(0, 10).replaceAll('-', '') === operatingDate);
       const handling = queueHandling.find((item) => item.counterId === counterId && item.status === 'serving');
       const current = handling ? queue.find((entry) => entry.id === handling.queueId) : null;
-      const next = entries.find((entry) => entry.status === 'pending') || null;
+      const counter = await this.findCounter(counterId);
+      const pending = entries.filter((entry) => entry.status === 'pending');
+      const mapped = pending.filter((entry) => counter.serviceTypes.includes(entry.serviceType));
+      const priority = mapped.filter((entry) => entry.service.queueType === 'priority');
+      const regular = mapped.filter((entry) => entry.service.queueType === 'regular');
+      const fallbackPriority = [];
+      for (const entry of priority) {
+        if (!await this.hasAvailablePriorityCounter(branchCode, entry.serviceType)) fallbackPriority.push(entry);
+      }
+      const next = counter.counterType === 'priority'
+        ? (priority[0] || regular[0] || null)
+        : (regular[0] || fallbackPriority[0] || null);
+      const availableCounterCount = await this.countAvailableCounters(branchCode);
       return {
         branch: await this.findBranchByCode(branchCode),
         queueDay,
         counterId,
-        waitingCount: entries.filter((entry) => entry.status === 'pending').length,
+        waitingCount: pending.length,
+        currentQueue: pending.length,
+        availableCounterCount,
         currentTicket: current ? current.ticketNumber : 0,
         nextTicket: next ? next.ticketNumber : 0,
       };
+    },
+    async countAvailableCounters(branchCode) {
+      return counters.filter((counter) => counter.branchCode === branchCode
+        && counter.status === 'active'
+        && !assignments.some((assignment) => assignment.counterId === counter.id && assignment.status === 'active')
+        && !queueHandling.some((handling) => handling.counterId === counter.id && handling.status === 'serving')).length;
     },
     async findQueueByTicket(ticketNumber, branchCode) {
       return queue.find((entry) => entry.ticketNumber === ticketNumber && (!branchCode || entry.branch.code === branchCode)) || null;
@@ -145,6 +232,23 @@ function createMemoryRepository() {
         && assignment.counterId === staff.counterId
         && assignment.branchCode === branchCode
         && assignment.status === 'active') || null;
+    },
+    async isQueueEligibleForCounter(entry, counterId) {
+      const counter = await this.findCounter(counterId);
+      if (!counter || counter.status !== 'active') return false;
+      return counter.serviceTypes.includes(entry.serviceType)
+        && (counter.counterType === 'priority'
+          || entry.service.queueType === 'regular'
+          || !(await this.hasAvailablePriorityCounter(entry.branch.code, entry.serviceType)));
+    },
+    async hasAvailablePriorityCounter(branchCode, serviceType) {
+      const serviceTypes = Array.isArray(serviceType) ? serviceType : [serviceType];
+      return counters.some((counter) => counter.branchCode === branchCode
+        && counter.status === 'active'
+        && counter.counterType === 'priority'
+        && counterServiceMappings.some((mapping) => mapping.counterId === counter.id && serviceTypes.includes(mapping.serviceType))
+        && !assignments.some((assignment) => assignment.counterId === counter.id && assignment.status === 'active')
+        && !queueHandling.some((handling) => handling.counterId === counter.id && handling.status === 'serving'));
     },
     async hasActiveQueueHandling(queueId) {
       return queueHandling.some((handling) => handling.queueId === queueId && handling.status === 'serving');

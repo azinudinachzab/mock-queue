@@ -77,7 +77,13 @@ function createQueueService(repository, now = () => new Date()) {
       return {
         dashboard: {
           ...dashboard,
-          counter: counter ? { id: counter.id, code: counter.counterCode, name: counter.counterName } : null,
+          counter: counter ? {
+            id: counter.id,
+            code: counter.counterCode,
+            name: counter.counterName,
+            type: counter.counterType,
+            serviceTypes: counter.serviceTypes,
+          } : null,
           durationSeconds: Math.max(0, Math.floor((now() - startedAt) / 1000)),
         },
       };
@@ -109,6 +115,9 @@ async function transition(repository, ticketNumber, nextStatus, allowedStatuses,
   if (!entry) return { error: 'Ticket not found', notFound: true };
   const assignment = await repository.findActiveStaffAssignment(staff, entry.branch.code);
   if (!assignment) return { error: 'Staff agent is not assigned to this counter or branch', forbidden: true };
+  if (nextStatus === 'serving' && !(await repository.isQueueEligibleForCounter(entry, staff.counterId))) {
+    return { error: 'Queue is not eligible for this counter type', forbidden: true };
+  }
   if (!allowedStatuses.includes(entry.status)) {
     return { error: `Cannot change ticket from ${entry.status} to ${nextStatus}` };
   }

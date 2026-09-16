@@ -60,8 +60,13 @@ async function main() {
     const branch = await prisma.branch.findUnique({ where: { code: counter.branchCode } });
     const seededCounter = await prisma.counter.upsert({
       where: { counterCode: counter.counterCode },
-      update: { counterName: counter.counterName, status: counter.status, branchId: branch.id },
-      create: { counterCode: counter.counterCode, counterName: counter.counterName, status: counter.status, branchId: branch.id },
+      update: {
+        counterName: counter.counterName, status: counter.status, counterType: counter.counterType, branchId: branch.id,
+      },
+      create: {
+        counterCode: counter.counterCode, counterName: counter.counterName, status: counter.status,
+        counterType: counter.counterType, branchId: branch.id,
+      },
     });
     const agent = await prisma.salesAgent.findFirst({ where: { branchId: branch.id, status: 'active' } });
     if (agent) {

@@ -20,8 +20,11 @@ function createApp(options = {}) {
   const repository = createRepository(options);
   const branchController = createBranchController(createBranchService(repository));
   const queueController = createQueueController(createQueueService(repository, options.now));
-  const counterController = createCounterController(createCounterService(repository));
+  const counterController = createCounterController(createCounterService(repository, options.now));
   const salesAgentController = createSalesAgentController(createSalesAgentService(repository));
+  const staffContext = require('./middleware/staffContext');
+  const requireStaffContext = staffContext.createStaffContext(repository);
+  const requireStaffAgentContext = staffContext.createStaffAgentContext(repository);
   const app = express();
   const logger = options.logger || console;
 
@@ -32,9 +35,12 @@ function createApp(options = {}) {
   app.use(express.json());
   app.get('/', (req, res) => res.json({ name: 'Queue API', status: 'ok' }));
   app.use('/api/public', createPublicRoutes(branchController, queueController));
-  app.use('/api/internal', createInternalRoutes(queueController));
-  app.use('/api/internal/counters', require('./middleware/staffContext').requireStaffContext, createCounterRoutes(counterController));
-  app.use('/api/internal/sales-agents', require('./middleware/staffContext').requireStaffContext, createSalesAgentRoutes(salesAgentController));
+  app.use('/api/internal', createInternalRoutes({
+    queueController,
+    counterRoutes: createCounterRoutes(counterController, requireStaffContext, requireStaffAgentContext),
+    salesAgentRoutes: createSalesAgentRoutes(salesAgentController),
+    requireStaffContext,
+  }));
   app.use('/api/branches', createBranchRoutes(branchController));
   app.use('/api/queue', createQueueRoutes(queueController));
   app.use('/queue', createQueueRoutes(queueController));

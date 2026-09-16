@@ -43,12 +43,32 @@ function createPrismaRepository(prisma) {
       const agent = await prisma.salesAgent.update({ where: { id }, data, include: { branch: true } });
       return toSalesAgent(agent);
     },
-    async listCounters(branchCode) {
-      return prisma.counter.findMany({ where: { branch: { code: branchCode } }, orderBy: { id: 'asc' } });
+    async listCounters(branchCode, agentId) {
+      const counters = await prisma.counter.findMany({
+        where: { branch: { code: branchCode } },
+        include: {
+          serviceMappings: { include: { service: true } },
+          assignments: { where: { status: 'active', unassignedAt: null } },
+          queueHandlings: { where: { status: 'serving' }, select: { id: true } },
+        },
+        orderBy: { id: 'asc' },
+      });
+      return counters.map((counter) => ({
+        ...toCounter(counter),
+        availableForAgent: (!agentId || !counter.assignments.some((assignment) => assignment.salesAgentId !== agentId))
+          && counter.queueHandlings.length === 0,
+        ...(agentId ? { availability: 'available' } : {}),
+      }));
     },
     async findCounter(counterId) {
-      const counter = await prisma.counter.findUnique({ where: { id: counterId }, include: { branch: true } });
-      return counter ? { ...counter, branchCode: counter.branch.code } : null;
+      const counter = await prisma.counter.findUnique({
+        where: { id: counterId },
+        include: { branch: true, serviceMappings: { include: { service: true } } },
+      });
+      return counter ? toCounter(counter) : null;
+    },
+    async findCounterByCode(counterCode) {
+      return prisma.counter.findUnique({ where: { counterCode } });
     },
     async createCounter(input) {
       return prisma.counter.create({
@@ -56,8 +76,37 @@ function createPrismaRepository(prisma) {
           counterCode: input.counterCode,
           counterName: input.counterName,
           status: input.status || 'active',
+          counterType: input.counterType || 'regular',
           branch: { connect: { code: input.branchCode } },
         },
+      });
+    },
+    async updateCounter(counterId, input) {
+      const data = {};
+      for (const field of ['counterCode', 'counterName', 'status', 'counterType']) {
+        if (input[field] !== undefined) data[field] = input[field];
+      }
+      return prisma.counter.update({ where: { id: counterId }, data });
+    },
+    async listServices() {
+      return prisma.service.findMany({ where: { status: 'active' }, orderBy: { id: 'asc' } });
+    },
+    async listCounterServiceTypes(counterId) {
+      const mappings = await prisma.counterServiceMapping.findMany({
+        where: { counterId }, include: { service: true }, orderBy: { serviceId: 'asc' },
+      });
+      return mappings.map((mapping) => mapping.service.code);
+    },
+    async updateCounterServiceTypes(counterId, serviceTypes) {
+      return prisma.$transaction(async (transaction) => {
+        await transaction.counterServiceMapping.deleteMany({ where: { counterId } });
+        const services = await transaction.service.findMany({ where: { code: { in: serviceTypes } } });
+        if (services.length) {
+          await transaction.counterServiceMapping.createMany({
+            data: services.map((service) => ({ counterId, serviceId: service.id })),
+          });
+        }
+        return serviceTypes;
       });
     },
     async assignCounter(counterId, salesAgentId) {
@@ -79,6 +128,56 @@ function createPrismaRepository(prisma) {
         where: { id: assignment.id },
         data: { status: 'inactive', unassignedAt: new Date() },
       }) : null;
+    },
+    async selectCounter(counterId, agentId, branchCode) {
+      return prisma.$transaction(async (transaction) => {
+        const counter = await transaction.counter.findFirst({
+          where: { id: counterId, status: 'active', branch: { code: branchCode } },
+          include: {
+            branch: true,
+            serviceMappings: { include: { service: true } },
+            assignments: { where: { status: 'active', unassignedAt: null } },
+            queueHandlings: { where: { status: 'serving' }, select: { id: true } },
+          },
+        });
+        if (!counter || counter.assignments.some((assignment) => assignment.salesAgentId !== agentId)) return null;
+        if (counter.queueHandlings.length) return null;
+        const existing = counter.assignments.find((assignment) => assignment.salesAgentId === agentId);
+        if (!existing) {
+          await transaction.counterAssignment.create({
+            data: { counterId, salesAgentId: agentId, assignedAt: new Date(), status: 'active' },
+          });
+        }
+        return { ...toCounter(counter), availability: 'occupied', assignedAgentId: agentId };
+      }, { isolationLevel: 'Serializable' });
+    },
+    async releaseCounter(counterId, agentId, branchCode) {
+      return prisma.$transaction(async (transaction) => {
+        const handling = await transaction.queueHandling.findFirst({
+          where: { counterId, status: 'serving' }, select: { id: true },
+        });
+        if (handling) return null;
+        const assignment = await transaction.counterAssignment.findFirst({
+          where: {
+            counterId,
+            salesAgentId: agentId,
+            status: 'active',
+            unassignedAt: null,
+            counter: { branch: { code: branchCode } },
+          },
+          orderBy: { id: 'desc' },
+        });
+        if (!assignment) return null;
+        await transaction.counterAssignment.update({
+          where: { id: assignment.id },
+          data: { status: 'inactive', unassignedAt: new Date() },
+        });
+        const counter = await transaction.counter.findUnique({
+          where: { id: counterId },
+          include: { branch: true, serviceMappings: { include: { service: true } } },
+        });
+        return counter ? { ...toCounter(counter), availability: 'available' } : null;
+      }, { isolationLevel: 'Serializable' });
     },
     async findBranchQueueStatus(branchCode, operatingDate) {
       const queueDay = await prisma.branchQueueDay.findUnique({
@@ -113,7 +212,7 @@ function createPrismaRepository(prisma) {
         this.findBranchQueueStatus(branchCode, operatingDate),
         prisma.queueEntry.findMany({
           where: { branchCode, queueDate: new Date(`${operatingDate.slice(0, 4)}-${operatingDate.slice(4, 6)}-${operatingDate.slice(6, 8)}T00:00:00.000Z`) },
-          include: { branch: true },
+          include: { branch: true, service: true },
           orderBy: { id: 'asc' },
         }),
         prisma.queueHandling.findFirst({
@@ -123,20 +222,44 @@ function createPrismaRepository(prisma) {
         }),
         this.findBranchByCode(branchCode),
       ]);
+      const counter = await this.findCounter(counterId);
       const pending = entries.filter((entry) => entry.status === 'pending');
+      const mapped = pending.filter((entry) => counter.serviceTypes.includes(entry.serviceType));
+      const priority = mapped.filter((entry) => entry.service.queueType === 'priority');
+      const regular = mapped.filter((entry) => entry.service.queueType === 'regular');
+      const fallbackPriority = [];
+      for (const entry of priority) {
+        if (!await this.hasAvailablePriorityCounter(branchCode, entry.serviceType)) fallbackPriority.push(entry);
+      }
+      const next = counter.counterType === 'priority'
+        ? (priority[0] || regular[0] || null)
+        : (regular[0] || fallbackPriority[0] || null);
+      const availableCounterCount = await this.countAvailableCounters(branchCode);
       return {
         branch: toBranch(branch),
         queueDay,
         counterId,
         waitingCount: pending.length,
+        currentQueue: pending.length,
+        availableCounterCount,
         currentTicket: handling ? handling.queue.ticketNumber : 0,
-        nextTicket: pending.length ? pending[0].ticketNumber : 0,
+        nextTicket: next ? next.ticketNumber : 0,
       };
+    },
+    async countAvailableCounters(branchCode) {
+      return prisma.counter.count({
+        where: {
+          status: 'active',
+          branch: { code: branchCode },
+          assignments: { none: { status: 'active', unassignedAt: null } },
+          queueHandlings: { none: { status: 'serving' } },
+        },
+      });
     },
     async findQueueByTicket(ticketNumber, branchCode) {
       const entry = await prisma.queueEntry.findFirst({
         where: { ticketNumber, ...(branchCode ? { branchCode } : {}) },
-        include: { branch: true },
+        include: { branch: true, service: true },
       });
       return entry ? toQueueEntry(entry) : null;
     },
@@ -172,6 +295,29 @@ function createPrismaRepository(prisma) {
           counter: { status: 'active', branch: { code: branchCode } },
         },
       });
+    },
+    async isQueueEligibleForCounter(entry, counterId) {
+      const counter = await this.findCounter(counterId);
+      if (!counter || counter.status !== 'active') return false;
+      return counter.serviceTypes.includes(entry.serviceType)
+        && (counter.counterType === 'priority'
+          || entry.service.queueType === 'regular'
+          || !(await this.hasAvailablePriorityCounter(entry.branch.code, entry.serviceType)));
+    },
+    async hasAvailablePriorityCounter(branchCode, serviceType) {
+      const serviceTypes = Array.isArray(serviceType) ? serviceType : [serviceType];
+      const counter = await prisma.counter.findFirst({
+        where: {
+          status: 'active',
+          counterType: 'priority',
+          branch: { code: branchCode },
+          serviceMappings: { some: { service: { code: { in: serviceTypes } } } },
+          assignments: { none: { status: 'active', unassignedAt: null } },
+          queueHandlings: { none: { status: 'serving' } },
+        },
+        select: { id: true },
+      });
+      return Boolean(counter);
     },
     async createQueueHandling(entry, staff) {
       return prisma.queueHandling.create({
@@ -316,6 +462,15 @@ function operatingDateDate(operatingDate) {
 function toQueueEntry(entry) {
   const { branch, ...queueEntry } = entry;
   return { ...queueEntry, branch: toBranch(branch) };
+}
+
+function toCounter(counter) {
+  const { branch, serviceMappings, ...value } = counter;
+  return {
+    ...value,
+    ...(branch ? { branchCode: branch.code } : {}),
+    serviceTypes: (serviceMappings || []).map((mapping) => mapping.service.code),
+  };
 }
 
 function toBranch(branch) {

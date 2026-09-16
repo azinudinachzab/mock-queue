@@ -89,7 +89,7 @@ collection:
         name: GET Queue Dashboard Summary
         meta:
           id: req_internal_dashboard_summary
-          description: Returns branch, counter, duration, waiting count, current ticket, and next ticket.
+          description: Returns branch, counter, duration, currentQueue, waitingCount, availableCounterCount, current ticket, and next ticket.
         method: GET
         headers:
           - name: X-Staff-Agent-Id
@@ -265,7 +265,9 @@ collection:
             {
               "branchCode": "BR-001",
               "counterCode": "CTR-002",
-              "counterName": "Second Counter"
+              "counterName": "Second Counter",
+              "counterType": "regular",
+              "serviceTypes": ["HM", "PR"]
             }
         headers:
           - name: Content-Type
@@ -273,6 +275,63 @@ collection:
           - name: X-Staff-Agent-Id
             value: "1"
           - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/counters/2"
+        name: PATCH Update Counter Configuration
+        meta:
+          id: req_internal_update_counter
+          description: Updates counter identity, priority/regular type, and mapped service types.
+        method: PATCH
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "counterName": "Updated Counter",
+              "counterType": "priority",
+              "serviceTypes": ["HM", "PR"]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: X-Staff-Agent-Id
+            value: "1"
+          - name: X-Staff-Counter-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/counters/available"
+        name: GET Available Counters
+        meta:
+          id: req_internal_available_counters
+          description: Lists active, branch-scoped counters currently available to this internal.
+        method: GET
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/counters/2/select"
+        name: POST Select Counter
+        meta:
+          id: req_internal_select_counter
+          description: Atomically selects an available counter for the internal.
+        method: POST
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/counters/2/select"
+        name: DELETE Release Counter
+        meta:
+          id: req_internal_release_counter
+          description: Releases the counter owned by this internal.
+        method: DELETE
+        headers:
+          - name: X-Staff-Agent-Id
+            value: "1"
+      - url: "{{ _.BASE_URL }}/api/internal/counters/2/session/end"
+        name: POST End Counter Session
+        meta:
+          id: req_internal_end_counter_session
+          description: Ends the queue session and releases the selected counter.
+        method: POST
+        headers:
+          - name: X-Staff-Agent-Id
             value: "1"
       - url: "{{ _.BASE_URL }}/api/internal/counters/2/assignment"
         name: POST Assign Counter

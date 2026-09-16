@@ -82,10 +82,22 @@ Staff-facing queue monitoring is under `/api/internal`:
 
 Counter management is available internally:
 
+- `GET /api/internal/counters/available` (requires `X-Staff-Agent-Id`)
+- `POST /api/internal/counters/:counterId/select` (requires `X-Staff-Agent-Id`)
+- `DELETE /api/internal/counters/:counterId/select` (requires `X-Staff-Agent-Id`)
+- `POST /api/internal/counters/:counterId/session/end` (requires `X-Staff-Agent-Id`)
 - `GET /api/internal/counters`
 - `POST /api/internal/counters`
+- `PATCH /api/internal/counters/:counterId`
 - `POST /api/internal/counters/:counterId/assignment`
 - `DELETE /api/internal/counters/:counterId/assignment`
+
+Counter create/update requests accept `counterType: "priority" | "regular"` and `serviceTypes: ["HM", "PR"]`. A queue is eligible only when its service type is mapped to the counter. Priority counters select mapped priority-service queues first and fall back to mapped regular queues; regular counters select mapped regular-service queues.
+
+Before queue activity, an internal agent can list branch counters that are available and select one. Selection rechecks the active assignment and returns the selected counter; subsequent queue requests continue using `X-Staff-Counter-Id`.
+An internal can release its selected counter with the `DELETE` endpoint or end its queue session with the `POST .../session/end` endpoint. Availability is derived from active assignments and serving work, so other internals see the counter become available on their next availability request.
+
+The internal dashboard returns `currentQueue` (also retained as `waitingCount`) and `availableCounterCount`, calculated from the latest branch queue and counter state on every request.
 
 Sales-agent management is available internally:
 

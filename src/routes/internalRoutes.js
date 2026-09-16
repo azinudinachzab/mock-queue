@@ -1,8 +1,14 @@
 const express = require('express');
-const { requireStaffContext } = require('../middleware/staffContext');
 
-function createInternalRoutes(queueController) {
+function createInternalRoutes({
+  queueController,
+  counterRoutes,
+  salesAgentRoutes,
+  requireStaffContext,
+}) {
   const router = express.Router();
+  router.use('/counters', counterRoutes);
+  router.use('/sales-agents', requireStaffContext, salesAgentRoutes);
   router.use(requireStaffContext);
   router.get('/queue', queueController.list);
   router.get('/dashboard', queueController.dashboard);
